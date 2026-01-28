@@ -1,0 +1,916 @@
+import React, { useState, useEffect } from "react";
+import {
+  FaCalendar,
+  FaUser,
+  FaCheck,
+  FaTimes,
+  FaClock,
+  FaEye,
+  FaTrash,
+  FaEdit,
+} from "react-icons/fa";
+import Swal from "sweetalert2";
+import leaveAPI from "services/leaveAPI";
+import { showSuccess, showError } from "utils/toastHelper";
+import { MdEdit } from "react-icons/md";
+import LeavePermissionRequest from "components/leave/LeavePermissionRequest";
+
+export default function LeaveRequestsList() {
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userName, setUserName] = useState("");
+
+  // New states for edit functionality
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [editRequestData, setEditRequestData] = useState(null);
+  console.log("0000000000000000", editRequestData);
+  // Cache states for pre-loaded data
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [requestTypes, setRequestTypes] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Reject modal states
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [requestToReject, setRequestToReject] = useState(null);
+
+  // Expanded text states
+  const [expandedReasons, setExpandedReasons] = useState({});
+
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    // Get user data from localStorage
+    const userRole = localStorage.getItem("user_role");
+    const storedUserName = localStorage.getItem("user_name");
+    const userEmail = localStorage.getItem("user_email");
+    const isSuperAdmin = localStorage.getItem("is_super_admin");
+    // const userId = localStorage.getItem('user_id');
+
+    // Check if user is super admin (is_super_admin must be true)
+    const isAdminUser = isSuperAdmin === "true" || isSuperAdmin === true;
+
+    setIsAdmin(isAdminUser);
+    setUserName(storedUserName || "");
+
+    // Load leave requests
+    loadLeaveRequests();
+
+    // Pre-load leave types and request types
+    loadPreLoadedData();
+  }, []);
+
+  const loadPreLoadedData = () => {
+    // Load leave types
+    leaveAPI.getLeaveTypes(
+      (data) => {
+        const types = Array.isArray(data)
+          ? data
+          : data?.results || data?.data || [];
+        setLeaveTypes(types);
+      },
+      (error) => {
+        setLeaveTypes([]);
+      }
+    );
+
+    // Load request types
+    leaveAPI.getRequestTypes(
+      (data) => {
+        const types = Array.isArray(data)
+          ? data
+          : data?.results || data?.data || [];
+        setRequestTypes(types);
+        setDataLoaded(true);
+      },
+      (error) => {
+        setRequestTypes([]);
+        setDataLoaded(true);
+      }
+    );
+  };
+
+  const loadLeaveRequests = () => {
+    setLoading(true);
+    leaveAPI.getAllLeaves(
+      (data) => {
+        let requestsArray = [];
+
+        // Handle multiple response formats
+        if (Array.isArray(data)) {
+          requestsArray = data;
+        } else if (data?.results && Array.isArray(data.results)) {
+          requestsArray = data.results;
+        } else if (data?.data && Array.isArray(data.data)) {
+          requestsArray = data.data;
+        } else if (data?.leave && Array.isArray(data.leave)) {
+          requestsArray = data.leave;
+        }
+
+        // Log first request to see field names
+        // if (requestsArray.length > 0) {
+        // }
+
+        setLeaveRequests(requestsArray);
+        setLoading(false);
+      },
+      (error) => {
+        showError("Failed to load leave requests");
+        setLeaveRequests([]);
+        setLoading(false);
+      }
+    );
+  };
+
+  // Filter requests based on status and search term
+  const filteredRequests = leaveRequests.filter((request) => {
+    const statusLower = request.status
+      ? String(request.status).toLowerCase()
+      : "";
+    const matchesStatus =
+      statusFilter === "all" || statusLower === statusFilter;
+    const matchesSearch =
+      !searchTerm ||
+      request.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.leave_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.department_name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      request.role_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+
+  const getStatusColor = (status) => {
+    const statusLower = status ? String(status).toLowerCase() : "";
+    switch (statusLower) {
+      case "approved":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "rejected":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    const statusLower = status ? String(status).toLowerCase() : "";
+    switch (statusLower) {
+      case "approved":
+        return <FaCheck className="text-green-600" />;
+      case "rejected":
+        return <FaTimes className="text-red-600" />;
+      case "pending":
+        return <FaClock className="text-yellow-600" />;
+      default:
+        return null;
+    }
+  };
+
+  const handleApprove = (requestId) => {
+    setLoading(true);
+    const userId = Number(localStorage.getItem("user_id"));
+    leaveAPI.updateLeaveStatus(
+      requestId,
+      { status: "Approved", id: requestId, user_id: userId },
+      (response) => {
+        showSuccess("Leave request approved successfully!");
+        loadLeaveRequests();
+        setShowDetailsModal(false);
+      },
+      (error) => {
+        showError("Failed to approve leave request");
+        setLoading(false);
+      }
+    );
+  };
+
+  const handleReject = (requestId, reason = "") => {
+    setLoading(true);
+    const userId = Number(localStorage.getItem("user_id"));
+
+    leaveAPI.updateLeaveStatus(
+      requestId,
+      { status: "Rejected", id: requestId, user_id: userId, reason: reason },
+      (response) => {
+        showSuccess("Leave request rejected successfully!");
+        loadLeaveRequests();
+        setShowDetailsModal(false);
+        setShowRejectModal(false);
+        setRejectReason("");
+        setRequestToReject(null);
+      },
+      (error) => {
+        showError("Failed to reject leave request");
+        setLoading(false);
+      }
+    );
+  };
+
+  const handleDelete = (requestId) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setLoading(true);
+        leaveAPI.deleteLeave(
+          requestId,
+          (response) => {
+            showSuccess("Leave request deleted successfully!");
+            setShowDetailsModal(false);
+            setLoading(false);
+            loadLeaveRequests();
+          },
+          (error) => {
+            showError("Failed to delete leave request");
+            setLoading(false);
+          }
+        );
+      }
+    });
+  };
+
+  const calculateDuration = (fromDate, toDate) => {
+    // Check if fromDate exists, if not return "-"
+    if (!fromDate) return "-";
+
+    // Convert string dates to JavaScript Date objects
+    const from = new Date(fromDate);
+    const to = toDate ? new Date(toDate) : from;
+
+    // Calculate the difference in milliseconds
+    const diffTime = Math.abs(to - from);
+
+    // Convert milliseconds to days and add 1 to include both start and end day
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    // Return formatted result like "5 Days"
+    return `${diffDays} Days`;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+
+      {/* Filters */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div>
+          <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
+            Search by Name or Type
+          </label>
+          <input
+            type="text"
+            placeholder="Search requests..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-navy-700 placeholder-gray-400 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
+            Filter by Status
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-navy-700 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      
+       
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center rounded-lg bg-white p-12 dark:bg-navy-800">
+          <div className="text-center">
+            <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-brand-500"></div>
+            <p className="mt-4 text-navy-700 dark:text-white">
+              Loading requests...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* No Data State */}
+      {!loading && paginatedRequests.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-lg bg-white p-12 dark:bg-navy-800">
+          <FaCalendar className="text-5xl text-gray-300 dark:text-gray-600" />
+          <p className="mt-4 text-center text-gray-600 dark:text-gray-400">
+            {leaveRequests.length === 0
+              ? "No leave requests yet"
+              : "No matching requests found"}
+          </p>
+        </div>
+      )}
+
+      {/* Requests Table */}
+      {!loading && paginatedRequests.length > 0 && (
+        <div className="overflow-hidden rounded-lg bg-white shadow-lg dark:bg-navy-800">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-navy-700">
+                  <th className="px-6 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
+                    Employee
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
+                    Request Type
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
+                    Leave type
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
+                    Start Date
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
+                    Duration
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-center text-sm font-bold text-navy-700 dark:text-white">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedRequests.map((request, index) => (
+                  <tr
+                    key={request.id || index}
+                    className="border-b border-gray-200 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-navy-700"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900">
+                          <FaUser className="text-brand-600 dark:text-brand-300" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-navy-700 dark:text-white">
+                            {request.employee_name || "-"}
+                          </p>
+                          {/* Hide department if admin is viewing their own request */}
+                          {!(isAdmin && request.employee_name === userName) && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              {request.department_name || "-"}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-navy-700 dark:text-white">
+                        {request.request_type || "-"}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-navy-700 dark:text-white">
+                        {request.request_type === "Permission"
+                          ? "-"
+                          : request.leave_type || "-"}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="text-navy-700 dark:text-white">
+                        {request.from_date
+                          ? new Date(request.from_date).toLocaleDateString()
+                          : "-"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-navy-700 dark:text-white">
+                        {request.request_type === "Permission"
+                          ? `${request.duration}Hrs`
+                          : `${calculateDuration(
+                              request.from_date,
+                              request.to_date
+                            )}` || "-"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold ${getStatusColor(
+                          request.status
+                        )}`}
+                      >
+                        {getStatusIcon(request.status)}
+                        {request.status
+                          ? String(request.status).charAt(0).toUpperCase() +
+                            String(request.status).slice(1)
+                          : "Unknown"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {request.status &&
+                        String(request.status).toLowerCase() === "pending" ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setShowDetailsModal(true);
+                              }}
+                              className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+                              title="View Details"
+                            >
+                              <FaEye />
+                            </button>
+                            <button
+                              onClick={() => {
+                                // Ensure editRequestData has an id property for update API
+                                const editData = request.id
+                                  ? request
+                                  : { ...request, id: request.leaveid };
+                                setEditRequestData(editData);
+                                setShowRequestModal(true);
+                              }}
+                              className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+                              title="Edit Leave Request"
+                            >
+                              <MdEdit size={20} />
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(request.leaveid)}
+                              disabled={loading}
+                              className="rounded-lg p-2 text-red-600 transition hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
+                              title="Delete"
+                            >
+                              <FaTrash />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setShowDetailsModal(true);
+                            }}
+                            className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+                            title="View Details"
+                          >
+                            <FaEye />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex flex-col items-center justify-center gap-4 border-t border-gray-200 bg-gray-50 px-4 py-6 dark:border-gray-700 dark:bg-navy-700 sm:flex-row sm:justify-center md:gap-3 md:py-4">
+              <p className="text-xs text-gray-600 dark:text-gray-400 sm:hidden">
+                {startIndex + 1} to{" "}
+                {Math.min(startIndex + itemsPerPage, filteredRequests.length)}{" "}
+                of {filteredRequests.length}
+              </p>
+              <div className="flex items-center gap-2 sm:gap-1">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs font-bold text-navy-700 transition hover:bg-gray-100 disabled:opacity-30 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600 sm:px-4 sm:py-2"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`rounded-lg px-2 py-2 text-xs font-bold transition sm:px-3 ${
+                          currentPage === page
+                            ? "bg-blue-500 text-white"
+                            : "border-2 border-gray-200 bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                </div>
+                <button
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs font-bold text-navy-700 transition hover:bg-gray-100 disabled:opacity-30 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600 sm:px-4 sm:py-2"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedRequest && (
+        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-navy-800">
+            {/* Modal Header */}
+            <div className="sticky top-0 border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-navy-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FaCalendar className="text-xl text-brand-500" />
+                  <h2 className="text-2xl font-bold text-navy-700 dark:text-white">
+                    Leave Request Details
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                    }}
+                    className="text-2xl font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="space-y-6 p-6">
+              {/* Employee Information */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <FaUser className="text-navy-700 dark:text-white" />
+                  <h3 className="text-lg font-bold text-navy-700 dark:text-white">
+                    Employee Information
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4 dark:bg-navy-700">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Name
+                    </p>
+                    <p className="font-bold text-navy-700 dark:text-white">
+                      {selectedRequest.employee_name || "-"}
+                    </p>
+                  </div>
+                  {/* Show Department and Role if:
+                        - Not admin (isAdmin === false), or
+                        - Admin viewing someone else's request (selectedRequest.employee_name !== userName)
+                  */}
+                  {(!isAdmin ||
+                    (isAdmin &&
+                      selectedRequest.employee_name !== userName)) && (
+                    <>
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Department
+                        </p>
+                        <p className="font-bold text-navy-700 dark:text-white">
+                          {selectedRequest.department_name || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Role
+                        </p>
+                        <p className="font-bold text-navy-700 dark:text-white">
+                          {selectedRequest.role_name || "-"}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Status
+                    </p>
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold ${getStatusColor(
+                        selectedRequest.status
+                      )}`}
+                    >
+                      {getStatusIcon(selectedRequest.status)}
+                      {selectedRequest.status
+                        ? String(selectedRequest.status)
+                            .charAt(0)
+                            .toUpperCase() +
+                          String(selectedRequest.status).slice(1)
+                        : "Unknown"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Leave Details */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <FaCalendar className="text-navy-700 dark:text-white" />
+                  <h3 className="text-lg font-bold text-navy-700 dark:text-white">
+                    Leave Details
+                  </h3>
+                </div>
+
+                <div className="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-navy-700">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Leave Type
+                      </p>
+                      <p className="font-bold text-navy-700 dark:text-white">
+                        {selectedRequest.request_type === "Permission" ? "-": selectedRequest.leave_type || "-"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Request Type
+                      </p>
+                      <p className="font-bold text-navy-700 dark:text-white">
+                        {selectedRequest.request_type}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Start Date
+                      </p>
+                      <p className="font-bold text-navy-700 dark:text-white">
+                        {selectedRequest.from_date
+                          ? new Date(
+                              selectedRequest.from_date
+                            ).toLocaleDateString()
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        End Date
+                      </p>
+                      <p className="font-bold text-navy-700 dark:text-white">
+                        {selectedRequest.to_date
+                          ? new Date(
+                              selectedRequest.to_date
+                            ).toLocaleDateString()
+                          : "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedRequest.reason && (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Request Reason
+                        </p>
+                        <p className="font-bold text-navy-700 dark:text-white">
+                          {selectedRequest.reason}
+                        </p>
+                      </div>
+                      {selectedRequest.status &&
+                        String(selectedRequest.status).toLowerCase() ===
+                          "rejected" && (
+                          <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Request Reject Reason
+                            </p>
+                            <div className="mt-2">
+                              <p className="break-words font-bold text-navy-700 dark:text-white">
+                                {expandedReasons[selectedRequest.id]
+                                  ? selectedRequest.approval_reason
+                                  : selectedRequest.approval_reason?.substring(
+                                      0,
+                                      100
+                                    )}
+                                {selectedRequest.approval_reason &&
+                                  selectedRequest.approval_reason.length >
+                                    100 &&
+                                  !expandedReasons[selectedRequest.id] &&
+                                  "..."}
+                              </p>
+                              {selectedRequest.approval_reason &&
+                                selectedRequest.approval_reason.length >
+                                  100 && (
+                                  <button
+                                    onClick={() =>
+                                      setExpandedReasons({
+                                        ...expandedReasons,
+                                        [selectedRequest.id]:
+                                          !expandedReasons[selectedRequest.id],
+                                      })
+                                    }
+                                    className="mt-2 text-sm font-bold text-brand-500 transition hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
+                                  >
+                                    {expandedReasons[selectedRequest.id]
+                                      ? "See Less"
+                                      : "See More"}
+                                  </button>
+                                )}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  )}
+                  {selectedRequest.remarks && (
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Remarks
+                      </p>
+                      <p className="font-bold text-navy-700 dark:text-white">
+                        {selectedRequest.remarks}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedRequest.remarks && (
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Remarks
+                      </p>
+                      <p className="font-bold text-navy-700 dark:text-white">
+                        {selectedRequest.remarks}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              {selectedRequest.status &&
+                String(selectedRequest.status).toLowerCase() === "pending" &&
+                isAdmin && (
+                  <div className="flex gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
+                    <button
+                      onClick={() =>
+                        handleApprove(
+                          selectedRequest.id || selectedRequest.leaveid
+                        )
+                      }
+                      disabled={loading}
+                      className="flex-1 rounded-lg bg-green-500 px-4 py-3 font-bold text-white transition duration-200 hover:bg-green-600 disabled:opacity-50 dark:bg-green-600 dark:hover:bg-green-700"
+                    >
+                      <FaCheck className="mr-2 inline" /> Approve
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRequestToReject(selectedRequest);
+                        setShowRejectModal(true);
+                      }}
+                      disabled={loading}
+                      className="flex-1 rounded-lg bg-red-500 px-4 py-3 font-bold text-white transition duration-200 hover:bg-red-600 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
+                    >
+                      <FaTimes className="mr-2 inline" /> Reject
+                    </button>
+                  </div>
+                )}
+
+              {(!selectedRequest.status ||
+                String(selectedRequest.status).toLowerCase() !== "pending") && (
+                <div className="flex gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="flex-1 rounded-lg border-2 border-gray-200 bg-white px-4 py-3 font-bold text-navy-700 transition duration-200 hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600"
+                  >
+                    Close
+                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDelete(selectedRequest.leaveid)}
+                      disabled={loading}
+                      className="rounded-lg bg-orange-500 px-4 py-3 font-bold text-white transition duration-200 hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
+                    >
+                      <FaTrash className="mr-2 inline" /> Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Request Modal - LeavePermissionRequest Component */}
+      {showRequestModal && (
+        <LeavePermissionRequest
+          editData={editRequestData}
+          leaveTypes={leaveTypes}
+          requestTypes={requestTypes}
+          onClose={() => {
+            setShowRequestModal(false);
+            setEditRequestData(null);
+            loadLeaveRequests(); // Refresh the list after editing
+          }}
+        />
+      )}
+
+      {/* Reject Reason Modal */}
+      {showRejectModal && requestToReject && (
+        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-navy-800">
+            {/* Modal Header */}
+            <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-navy-700 dark:text-white">
+                  Reject Leave Request
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectReason("");
+                    setRequestToReject(null);
+                  }}
+                  className="text-2xl font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="space-y-4 p-6">
+              <div>
+                <p className="mb-2 text-sm font-semibold text-navy-700 dark:text-white">
+                  Employee: {requestToReject.employee_name}
+                </p>
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                  Please provide a reason for rejecting this leave request.
+                </p>
+              </div>
+
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter reason for rejection..."
+                rows="4"
+                className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-navy-700 placeholder-gray-400 transition focus:border-red-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectReason("");
+                  setRequestToReject(null);
+                }}
+                className="flex-1 rounded-lg border-2 border-gray-200 bg-white px-4 py-2 font-bold text-navy-700 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (rejectReason.trim()) {
+                    handleReject(
+                      requestToReject.id || requestToReject.leaveid,
+                      rejectReason
+                    );
+                  } else {
+                    showError("Please provide a reason for rejection");
+                  }
+                }}
+                disabled={loading || !rejectReason.trim()}
+                className="flex-1 rounded-lg bg-red-500 px-4 py-2 font-bold text-white transition hover:bg-red-600 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

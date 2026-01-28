@@ -1,0 +1,12 @@
+{
+  "editor.acceptSuggestionOnCommitCharacter": false,
+  "editor.tabCompletion": "off",
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.wordWrap": "on",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}

@@ -1,0 +1,130 @@
+{% extends "main.html" %}
+{% load static %}
+
+{% block header %}
+<!-- Include FontAwesome CDN -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<!-- Include SweetAlert2 -->
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.css" rel="stylesheet">
+
+
+{% endblock header %}
+
+{% block contentheader %}
+<div class="content-body-header border-bottom">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="page-title">
+            <h5 id="h5Title">Calendar</h5>
+        </div>
+    </div>
+</div>
+{% endblock contentheader %}
+
+{% block content %}
+<!-- Modal backdrop -->
+<div class="modal-backdrop" id="modalBackdrop"></div>
+
+<div class="calendar-content" id="calendarContent">
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <h2 class="calendar-title" id="calendarTitle">December 2023</h2>
+            <div class="calendar-nav">
+                <button id="todayBtn">Today</button>
+                <button id="prevBtn"><i class="fas fa-chevron-left"></i></button>
+                <button id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                <button class="active" id="monthBtn">Month</button>
+                <button id="weekBtn">Week</button>
+                <button id="dayBtn">Day</button>
+                <button id="addEventBtn"><i class="fas fa-plus"></i> Add Event</button>
+            </div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid">
+            <!-- Calendar will be generated here -->
+        </div>
+    </div>
+</div>
+
+<!-- Event Modal -->
+<div class="event-modal" id="eventModal">  
+    <div class="event-modal-content">
+        <div class="event-modal-header">
+            <h3 class="event-modal-title" id="eventModalTitle">Add New Event</h3>
+            <button class="event-modal-close" id="eventModalClose">&times;</button>
+        </div>
+        <div class="event-modal-body">
+            <form id="eventForm">
+                <div class="event-form-group">
+                    <label for="eventTitle">Event Title</label>
+                    <input type="text" id="eventTitle" name="eventTitle" required>
+                </div>
+                <div class="event-form-group">
+                    <label for="eventDate">Date</label>
+                    <input type="date" id="eventDate" name="eventDate" required>
+                </div>
+                <div class="event-form-group">
+                    <label for="eventTime">Time</label>
+                    <input type="time" id="eventTime" name="eventTime">
+                </div>
+                <div class="event-form-group">
+                    <label for="eventCategory">Category</label>
+                    <select id="eventCategory" name="eventCategory">
+                        <option value="work">Work</option>
+                        <option value="personal">Personal</option>
+                        <option value="meeting">Meeting</option>
+                        <option value="deadline">Deadline</option>
+                    </select>
+                </div>
+                <div class="event-form-group">
+                    <label for="eventDescription">Description</label>
+                    <textarea id="eventDescription" name="eventDescription"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="event-modal-footer">
+            <button class="btn btn-outline-secondary" id="eventModalCancel">Cancel</button>
+            <button class="btn btn-primary" id="eventModalSave">Save Event</button>
+        </div>
+    </div>
+</div>
+
+<!-- Event Details Modal -->
+<div class="event-modal" id="eventDetailsModal">
+    <div class="event-modal-content">
+        <div class="event-modal-header">
+            <h3 class="event-modal-title">Event Details</h3>
+            <button class="event-modal-close" id="eventDetailsModalClose">&times;</button>
+        </div>
+        <div class="event-modal-body" id="eventDetailsBody">
+            <!-- Event details will be populated here -->
+        </div>
+        <div class="event-details-actions">
+            <button class="btn btn-primary" id="editEventBtn">Edit</button>
+            <button class="btn btn-danger" id="deleteEventBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Date Events Modal -->
+<div class="date-events-modal" id="dateEventsModal">
+    <div class="date-events-content">
+        <div class="date-events-header">
+            <h3 class="date-events-title" id="dateEventsTitle">Events for December 5, 2023</h3>
+            <button class="event-modal-close" id="dateEventsModalClose">&times;</button>
+        </div>
+        <div class="date-events-body">
+            <div class="date-events-list" id="dateEventsList">
+                <!-- Events for the selected date will be populated here -->
+            </div>
+            <div class="event-modal-footer">
+                <button class="btn btn-outline-secondary" id="dateEventsModalCancel">Close</button>
+                <button class="btn btn-primary" id="addEventForDateBtn">Add Event</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+<script src="{% static 'js/mypanel/calendar.js' %}"></script>
+{% endblock footer %}
