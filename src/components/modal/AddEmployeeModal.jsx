@@ -1,4 +1,12 @@
 import React, { useState, useEffect } from "react";
+import Cropper from "react-easy-crop";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Button from "@mui/material/Button";
+import Slider from "@mui/material/Slider";
+import getCroppedImg from "../../utils/cropImageHelper";
 import { MdCloudUpload } from "react-icons/md";
 import { FaEye, FaEyeSlash, FaCamera, FaCloudUploadAlt } from "react-icons/fa";
 import { IoDocumentAttach } from "react-icons/io5";
@@ -15,6 +23,12 @@ const AddEmployeeModal = ({
   isEditMode = false,
   editingEmployee = null,
 }) => {
+  // Cropper states (must be inside component)
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [rawImage, setRawImage] = useState(null);
   // State to store all form data
   const [formData, setFormData] = useState({
     email: "",
@@ -38,6 +52,7 @@ const AddEmployeeModal = ({
     salary_slips: null,
     aadhaar_card: null,
     pan_card: null,
+    is_active: true,
   });
 
   // State for preview images
@@ -52,7 +67,6 @@ const AddEmployeeModal = ({
     localStorage.getItem("is_super_admin") === "true" ||
     localStorage.getItem("is_super_admin") === true;
 
-  // Document definitions
   const documents = {
     sslcCertificate: { label: "SSLC Certificate", required: true },
     relieving_letter: { label: "Relieving Letter", required: false },
@@ -153,7 +167,7 @@ const AddEmployeeModal = ({
           address: editingEmployee.address || "",
           mobile: editingEmployee.mobile || "",
           gender: editingEmployee.gender || "",
-          profile_picture: editingEmployee.profile_picture || null,
+          profile_picture: editingEmployee.profile_picture,
           department: deptValue,
           role: roleValue,
           password: "",
@@ -164,6 +178,7 @@ const AddEmployeeModal = ({
           salary_slips: editingEmployee.salary_slips,
           aadhaar_card: editingEmployee.aadhaar_card,
           pan_card: editingEmployee.pan_card,
+          is_active: isActive, // preserve is_active for edit
         });
         // Load profile picture preview if exists
         if (editingEmployee.profile_picture) {
@@ -177,9 +192,7 @@ const AddEmployeeModal = ({
             if (value.match(/\.(jpg|jpeg|png|webp)$/i)) {
               docPreviewObj[docKey] = {
                 type: "image",
-                src: value.startsWith("http")
-                  ? value
-                  : `https://insoluble-unseparately-delena.ngrok-free.dev/api${value}`,
+                src: value.startsWith("http") ? value : `${value}`,
               };
             } else if (value.match(/\.pdf$/i)) {
               docPreviewObj[docKey] = {
@@ -203,15 +216,50 @@ const AddEmployeeModal = ({
         alert("Image should be below 4 MB");
         return;
       }
-      setFormData({ ...formData, profile_picture: file });
-
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setRawImage(reader.result);
+        setShowCropModal(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Cropper callbacks
+  const onCropComplete = (croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const handleCropSave = async () => {
+    try {
+      const croppedImage = await getCroppedImg(rawImage, croppedAreaPixels);
+      // Convert base64 to File for upload
+      const arr = croppedImage.split(",");
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+
+      // Determine file extension based on MIME type
+      const extension = mime === "image/png" ? "png" : "jpg";
+      const fileName = `cropped_profile_picture.${extension}`;
+
+      const file = new File([u8arr], fileName, { type: mime });
+      setFormData((prev) => ({ ...prev, profile_picture: file }));
+      setImagePreview(croppedImage);
+      setShowCropModal(false);
+      setRawImage(null);
+    } catch (e) {
+      showError("Failed to crop image");
+    }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    setRawImage(null);
   };
 
   // Handle document upload
@@ -322,17 +370,22 @@ const AddEmployeeModal = ({
     if (validateForm()) {
       const submitData = new FormData();
       if (isEditMode && editingEmployee) {
-        // Only send changed fields for edit
+        // Only send changed fields for edit, and only if value is not null/empty/undefined
         Object.keys(formData).forEach((key) => {
           if (key === "confirm_password") return;
-          // For files: only send if a new file is selected
-          if (formData[key] instanceof File) {
-            submitData.append(key, formData[key]);
+          const value = formData[key];
+          if (key === "profile_picture") {
+            if (value instanceof File) {
+              submitData.append(key, value);
+            }
             return;
           }
-          // For other fields: only send if changed
+          if (value instanceof File) {
+            submitData.append(key, value);
+            return;
+          }
+          // For other fields: only send if changed and not empty/null/undefined
           let original = editingEmployee[key];
-          // For department/role, compare as string or id
           if (
             (key === "department" || key === "role") &&
             original &&
@@ -340,11 +393,14 @@ const AddEmployeeModal = ({
           ) {
             original = original.id || "";
           }
-          // For null/undefined, treat as empty string
-          const current = formData[key] ?? "";
+          const current = value ?? "";
           const originalVal = original ?? "";
-          if (String(current) !== String(originalVal)) {
-            // Convert department/role to int if needed
+          if (
+            String(current) !== String(originalVal) &&
+            current !== null &&
+            current !== "" &&
+            current !== undefined
+          ) {
             if (key === "department" || key === "role") {
               const intValue = parseInt(current, 10);
               if (!isNaN(intValue)) {
@@ -356,30 +412,31 @@ const AddEmployeeModal = ({
           }
         });
       } else {
-        // For add, send all non-empty fields as before
+        // For add, send only fields with real value (not null/empty/undefined)
         Object.keys(formData).forEach((key) => {
           if (key === "confirm_password") return;
-          if (formData[key] !== null && formData[key] !== "") {
-            if (formData[key] instanceof File) {
-              submitData.append(key, formData[key]);
+          const value = formData[key];
+          if (key === "profile_picture") {
+            if (value instanceof File) {
+              submitData.append(key, value);
+            }
+            return;
+          }
+          if (value !== null && value !== "" && value !== undefined) {
+            if (value instanceof File) {
+              submitData.append(key, value);
             } else if (key === "department" || key === "role") {
-              const intValue = parseInt(formData[key], 10);
+              const intValue = parseInt(value, 10);
               if (!isNaN(intValue)) {
                 submitData.append(key, intValue);
               }
             } else if (key === "is_active") {
-              submitData.append(
-                key,
-                formData[key] === true || formData[key] === "true"
-              );
+              submitData.append(key, value === true || value === "true");
             } else {
-              submitData.append(key, formData[key]);
+              submitData.append(key, value);
             }
           } else if (key === "is_active") {
-            submitData.append(
-              key,
-              formData[key] === true || formData[key] === "true"
-            );
+            submitData.append(key, value === true || value === "true");
           }
         });
       }
@@ -409,6 +466,7 @@ const AddEmployeeModal = ({
       submitFunction();
     } else {
       console.log("Form validation failed:", errors);
+      showError("Add employee failed");
     }
   };
 
@@ -438,68 +496,70 @@ const AddEmployeeModal = ({
 
   // Handle submission errors (add or update)
   const handleSubmitError = (error) => {
-    const action = isEditMode ? "updating" : "adding";
-
-    // Handle field-specific errors from backend
     let fieldErrors = {};
-    let errorMessages = [];
 
-    // Check if error has field-specific errors in message property
+    /**
+     * Normalize and collect backend errors
+     * @param {string} field - backend field name
+     * @param {any} value - error value (array | object | string)
+     */
+    const pushError = (field, value) => {
+      // Case 1: Array of messages
+      if (Array.isArray(value)) {
+        value.forEach((msg) => {
+          if (msg && msg.trim()) {
+            if (!fieldErrors[field]) {
+              fieldErrors[field] = msg;
+            }
+          }
+        });
+        return;
+      }
+
+      // Case 2: Nested object (rare but possible)
+      if (typeof value === "object" && value !== null) {
+        Object.entries(value).forEach(([subField, subVal]) => {
+          pushError(subField, subVal);
+        });
+        return;
+      }
+
+      // Case 3: Single string message
+      if (typeof value === "string" && value.trim()) {
+        if (!fieldErrors[field]) {
+          fieldErrors[field] = value;
+        }
+      }
+    };
+
+    // ✅ Most common backend structure
     if (error?.message && typeof error.message === "object") {
-      Object.keys(error.message).forEach((field) => {
-        const fieldError = error.message[field];
-        let errorMsg = "";
-
-        if (Array.isArray(fieldError)) {
-          errorMsg = fieldError[0] || fieldError.join(", ");
-        } else if (typeof fieldError === "string") {
-          errorMsg = fieldError;
-        }
-
-        if (errorMsg) {
-          fieldErrors[field] = errorMsg;
-          // Format field name (convert snake_case to Title Case)
-          const fieldLabel = field
-            .split("_")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
-          errorMessages.push(`${fieldLabel}: ${errorMsg}`);
-        }
+      Object.entries(error.message).forEach(([field, value]) => {
+        pushError(field, value);
       });
     }
-    // Fallback: check if errors are in data property
+    // ✅ Axios / RTK Query style
     else if (error?.data && typeof error.data === "object") {
-      Object.keys(error.data).forEach((field) => {
-        const fieldError = error.data[field];
-        let errorMsg = "";
-
-        if (Array.isArray(fieldError)) {
-          errorMsg = fieldError[0] || fieldError.join(", ");
-        } else if (typeof fieldError === "string") {
-          errorMsg = fieldError;
-        }
-
-        if (errorMsg) {
-          fieldErrors[field] = errorMsg;
-          const fieldLabel = field
-            .split("_")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
-          errorMessages.push(`${fieldLabel}: ${errorMsg}`);
-        }
+      Object.entries(error.data).forEach(([field, value]) => {
+        pushError(field, value);
       });
     }
+    // ✅ Fallback generic error
+    else if (typeof error?.message === "string") {
+      showError(error.message);
+      return;
+    } else {
+      showError("Add Employee Failed");
+      return;
+    }
 
-    // If we found field-specific errors, set them
+    // ✅ Set field-level errors
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
-      errorMessages.forEach((msg) => showError(msg.status));
-    } else {
-      // Show generic error message
-      showError(
-        error?.message || `Failed to ${action} employee. Please try again.`
-      );
     }
+
+    // ✅ Global error toast
+    showError("Add Employee Failed");
   };
 
   // OLD CODE - KEEPING FOR REFERENCE, WILL BE REMOVED
@@ -634,6 +694,7 @@ const AddEmployeeModal = ({
       salary_slips: null,
       aadhaar_card: null,
       pan_card: null,
+      is_active: true, // Always reset to true for new add
     });
     setImagePreview(null);
     setDocumentPreviews({});
@@ -651,7 +712,7 @@ const AddEmployeeModal = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1">
               <MdEdit className="h-6 w-6" />
-              <h2 className="text-2xl font-bold text-navy-700 dark:text-white">
+              <h2 className="sm-text-[14px] text-2xl text-[18px] font-bold text-navy-700 dark:text-white md:text-[16px] lg:text-[18px]">
                 {isEditMode ? " Edit Employee" : "Add New Employee"}
               </h2>
             </div>
@@ -668,55 +729,59 @@ const AddEmployeeModal = ({
         <form onSubmit={handleSubmit} className="space-y-6 p-6">
           {/* ===== PROFILE PICTURE SECTION ===== */}
           <div className="rounded-lg bg-gray-50 p-4 dark:bg-navy-700">
-            <div className="flex items-center space-x-2">
+            {/* Header */}
+            <div className="mb-4 flex items-center space-x-2">
               <FaCamera />
-              <h3 className=" text-lg font-bold text-navy-700 dark:text-white">
+              <h3 className="text-lg font-bold text-navy-700 dark:text-white">
                 Profile Picture
               </h3>
             </div>
-            <div className="flex gap-6">
+
+            {/* Main Content */}
+            <div className="flex flex-col gap-6 md:flex-row">
               {/* Image Preview */}
-              <label className="flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-white transition hover:border-brand-500 dark:border-gray-600 dark:bg-navy-800">
-                {imagePreview ? (
-                  <img
-                    src={
-                      imagePreview.startsWith("http") ||
-                      imagePreview.startsWith("data:")
-                        ? imagePreview
-                        : `https://insoluble-unseparately-delena.ngrok-free.dev/api${imagePreview}`
-                    }
-                    alt="Profile Preview"
-                    className="h-full w-full object-cover"
+              <div className="flex justify-center md:justify-start">
+                <label className="flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-white transition hover:border-brand-500 dark:border-gray-600 dark:bg-navy-800">
+                  {imagePreview ? (
+                    <img
+                      src={
+                        imagePreview.startsWith("http") ||
+                        imagePreview.startsWith("data:")
+                          ? imagePreview
+                          : `${imagePreview}`
+                      }
+                      alt="Profile Preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <MdCloudUpload className="text-4xl text-gray-400" />
+                  )}
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    hidden
                   />
-                ) : (
-                  <div className="text-center">
-                    <MdCloudUpload className="mx-auto text-4xl text-gray-400" />
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  style={{ display: "none" }}
-                  className=""
-                />
-              </label>
+                </label>
+              </div>
 
               {/* Upload Section */}
-              <div className="flex flex-1 flex-col justify-center">
+              <div className="flex flex-1 flex-col justify-center text-center md:text-left">
                 <label className="mb-3 block text-sm font-bold text-navy-700 dark:text-white">
                   Upload Image (Max 4MB)
                 </label>
-                <label className="inline-block cursor-pointer rounded-lg bg-brand-500 px-6 py-2 text-sm font-bold text-white transition hover:bg-brand-600">
+
+                <label className="mx-auto inline-block w-fit cursor-pointer rounded-lg bg-brand-500 px-6 py-2 text-sm font-bold text-white transition hover:bg-brand-600 md:mx-0 md:w-full">
                   Choose Image
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
-                    cons
-                    style={{ display: "none" }}
+                    hidden
                   />
                 </label>
+
                 {imagePreview && (
                   <button
                     type="button"
@@ -776,10 +841,15 @@ const AddEmployeeModal = ({
                     </span>
                   </label>
                 </div>
+                {errors.gender && (
+                  <span className="mt-1 block text-sm text-red-500">
+                    {errors.gender}
+                  </span>
+                )}
               </div>
 
               {/* Email & Username */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
                     Email <span className="text-red-500">*</span>
@@ -828,7 +898,7 @@ const AddEmployeeModal = ({
               </div>
 
               {/* Password & Confirm Password */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 ">
                 <div>
                   <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
                     Password <span className="text-red-500">*</span>
@@ -896,7 +966,8 @@ const AddEmployeeModal = ({
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
-                    Employee ID <span className="text-red-500">*</span>
+                    Employee ID{" "}
+                    {!isSuperAdmin && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="text"
@@ -904,11 +975,12 @@ const AddEmployeeModal = ({
                     value={formData.emp_code}
                     onChange={handleInputChange}
                     placeholder="Enter employee ID"
-                    className={`w-full rounded-lg border-2 bg-white px-4 py-2.5 text-navy-700 placeholder-gray-400 transition dark:bg-navy-700 dark:text-white ${
-                      errors.emp_code
-                        ? "border-red-500"
-                        : "border-gray-200 focus:border-brand-500 dark:border-gray-700"
-                    } focus:outline-none`}
+                    className={`w-full rounded-lg border-2 bg-white px-4 py-2.5 text-navy-700 placeholder-gray-400 transition dark:bg-navy-700 dark:text-white
+                       ${
+                         errors.emp_code
+                           ? "border-red-500"
+                           : "border-gray-200 focus:border-brand-500 dark:border-gray-700"
+                       } focus:outline-none`}
                   />
                   {errors.emp_code && (
                     <span className="mt-1 block text-sm text-red-500">
@@ -916,9 +988,11 @@ const AddEmployeeModal = ({
                     </span>
                   )}
                 </div>
+
                 <div>
                   <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
-                    Joining Date <span className="text-red-500">*</span>
+                    Joining Date{" "}
+                    {!isSuperAdmin && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="date"
@@ -931,11 +1005,11 @@ const AddEmployeeModal = ({
                         : "border-gray-200 focus:border-brand-500 dark:border-gray-700"
                     } focus:outline-none`}
                   />
-                  {errors.doj_date && (
+                  {/* {errors.doj_date && (
                     <span className="mt-1 block text-sm text-red-500">
                       {errors.doj_date}
                     </span>
-                  )}
+                  )} */}
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
@@ -958,7 +1032,8 @@ const AddEmployeeModal = ({
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
-                    Role <span className="text-red-500">*</span>
+                    Role{" "}
+                    {!isSuperAdmin && <span className="text-red-500">*</span>}
                   </label>
                   <select
                     name="role"
@@ -996,15 +1071,17 @@ const AddEmployeeModal = ({
             <div className="flex items-center space-x-1">
               <MdAccountBox className="h-5 w-5" />
               <h3 className="text-lg font-bold text-navy-700 dark:text-white">
-                Personal Information
+                Personal Information{" "}
+                {!isSuperAdmin && <span className="text-red-500">*</span>}
               </h3>
             </div>
 
             {/* First Name & Last Name */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 ">
               <div>
                 <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
-                  First Name <span className="text-red-500">*</span>
+                  First Name{" "}
+                  {!isSuperAdmin && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
@@ -1041,10 +1118,11 @@ const AddEmployeeModal = ({
             </div>
 
             {/* Employee ID & Date of Birth */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 ">
               <div>
                 <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
-                  Date of Birth <span className="text-red-500">*</span>
+                  Date of Birth{" "}
+                  {!isSuperAdmin && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="date"
@@ -1066,7 +1144,8 @@ const AddEmployeeModal = ({
 
               <div>
                 <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
-                  Address <span className="text-red-500">*</span>
+                  Address{" "}
+                  {!isSuperAdmin && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
@@ -1089,13 +1168,14 @@ const AddEmployeeModal = ({
             </div>
 
             {/* Joining Date & Address */}
-            <div className="grid grid-cols-2 gap-4"></div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 "></div>
 
             {/* Phone Number & Department */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 ">
               <div>
                 <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
-                  Phone Number <span className="text-red-500">*</span>
+                  Phone Number{" "}
+                  {!isSuperAdmin && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="tel"
@@ -1123,20 +1203,23 @@ const AddEmployeeModal = ({
             <div className="flex items-center space-x-1">
               <IoDocumentAttach className="h-5 w-5" />
               <h3 className="text-lg font-bold text-navy-700 dark:text-white">
-                Required Documents
+                Required Documents{" "}
+                {!isSuperAdmin && <span className="text-red-500">*</span>}
               </h3>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              <span className="text-red-500">*</span> indicates mandatory
-              documents. Max 10MB per file (PDF or Image).
-            </p>
+            {!isSuperAdmin && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-red-500">*</span> indicates mandatory
+                documents. Max 10MB per file (PDF or Image).
+              </p>
+            )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 ">
               {Object.entries(documents).map(([docKey, docInfo]) => (
                 <div key={docKey}>
                   <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
                     {docInfo.label}
-                    {docInfo.required && (
+                    {docInfo.required && !isSuperAdmin && (
                       <span className="text-red-500">*</span>
                     )}
                   </label>
@@ -1209,10 +1292,10 @@ const AddEmployeeModal = ({
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
+          <div className="flex gap-3 border-t border-gray-200 pt-6 text-[13px] dark:border-gray-700">
             <button
               type="submit"
-              className="flex-1 rounded-lg bg-brand-500 px-4 py-3 font-bold text-white transition duration-200 hover:bg-brand-600 active:bg-brand-700 dark:bg-brand-400 dark:hover:bg-brand-500"
+              className="flex-1 rounded-lg bg-brand-500 px-3 py-2 font-bold text-white transition duration-200 hover:bg-brand-600 active:bg-brand-700 dark:bg-brand-400 dark:hover:bg-brand-500"
             >
               {isEditMode ? " Update Employee" : "Add Employee"}
             </button>

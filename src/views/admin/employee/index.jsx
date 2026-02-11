@@ -16,11 +16,12 @@ import {
   createColumnHelper,
 } from "@tanstack/react-table";
 import { useAuth } from "contexts/AuthContext";
+import { IoDocumentText } from "react-icons/io5";
 
 const columnHelper = createColumnHelper();
 
 const Employee = () => {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, logout } = useAuth();
   const [sorting, setSorting] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [employees, setEmployees] = useState([]);
@@ -34,7 +35,7 @@ const Employee = () => {
   const [togglingId, setTogglingId] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const ITEMS_PER_PAGE = 3;
+  const ITEMS_PER_PAGE = 10;
 
   // Get current user role and admin status from localStorage
   useEffect(() => {
@@ -101,23 +102,21 @@ const Employee = () => {
 
             return {
               id: emp.id,
-              name: emp.first_name
-                ? `${emp.first_name} ${emp.last_name || ""}`.trim()
-                : "N/A",
-              email: emp.email || "N/A",
+              name: `${emp.user_name || ""}`.trim(),
+              email: emp.email || "-",
               role: roleName,
               department: departmentName,
               status: emp.is_active ? "Active" : "Inactive",
               joinDate: emp.doj_date
                 ? new Date(emp.doj_date).toLocaleDateString()
-                : "N/A",
+                : "-",
               ...emp,
             };
           });
 
           setEmployees(transformedData);
           setLoading(false);
-        } catch (err) {
+        } catch (error) {
           showError("Error loading employee data. Please refresh the page.");
           setLoading(false);
         }
@@ -126,6 +125,7 @@ const Employee = () => {
         // Handle different error types
         if (error?.status === 401) {
           showError("Unauthorized. Please login again.");
+          logout();
         } else if (error?.status === 403) {
           showError("You do not have permission to view employees.");
         } else if (error?.status === 404) {
@@ -152,12 +152,6 @@ const Employee = () => {
 
   // Handle successful employee addition/update
   const handleEmployeeSubmit = () => {
-    // if (isEditMode) {
-    //   showSuccess('Employee updated successfully!');
-    // } else {
-    //   showSuccess('Employee added successfully!');
-    // }
-    // Refresh the employee list after a brief delay to ensure backend has saved
     setTimeout(() => {
       fetchEmployees();
       setIsModalOpen(false);
@@ -254,15 +248,33 @@ const Employee = () => {
 
   const columns = useMemo(
     () => [
+      // S.No Column - NEW
+      columnHelper.display({
+        id: "sno",
+        header: () => (
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
+            S.NO
+          </p>
+        ),
+        cell: (info) => {
+          const rowIndex = info.row.index;
+          const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + rowIndex + 1;
+          return (
+            <p className="whitespace-nowrap text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+              {serialNumber}
+            </p>
+          );
+        },
+      }),
       columnHelper.accessor("name", {
         id: "name",
         header: () => (
-          <p className="text-sm font-bold text-gray-600 dark:text-white">
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
             NAME
           </p>
         ),
         cell: (info) => (
-          <p className="text-sm font-bold text-navy-700 dark:text-white">
+          <p className="whitespace-nowrap text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
             {info.getValue()}
           </p>
         ),
@@ -270,12 +282,12 @@ const Employee = () => {
       columnHelper.accessor("joinDate", {
         id: "joinDate",
         header: () => (
-          <p className="text-sm font-bold text-gray-600 dark:text-white">
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
             JOIN DATE
           </p>
         ),
         cell: (info) => (
-          <p className="text-sm text-navy-700 dark:text-white">
+          <p className="whitespace-nowrap text-xs text-navy-700 dark:text-white sm:text-sm">
             {info.getValue()}
           </p>
         ),
@@ -283,12 +295,12 @@ const Employee = () => {
       columnHelper.accessor("email", {
         id: "email",
         header: () => (
-          <p className="text-sm font-bold text-gray-600 dark:text-white">
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
             EMAIL
           </p>
         ),
         cell: (info) => (
-          <p className="text-sm text-navy-700 dark:text-white">
+          <p className="whitespace-nowrap text-xs text-navy-700 dark:text-white sm:text-sm">
             {info.getValue()}
           </p>
         ),
@@ -296,12 +308,12 @@ const Employee = () => {
       columnHelper.accessor("role_name", {
         id: "role_name",
         header: () => (
-          <p className="text-sm font-bold text-gray-600 dark:text-white">
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
             ROLE
           </p>
         ),
         cell: (info) => (
-          <p className="text-sm text-navy-700 dark:text-white">
+          <p className="whitespace-nowrap text-xs text-navy-700 dark:text-white sm:text-sm">
             {info.getValue()}
           </p>
         ),
@@ -309,12 +321,12 @@ const Employee = () => {
       columnHelper.accessor("department_name", {
         id: "department_name",
         header: () => (
-          <p className="text-sm font-bold text-gray-600 dark:text-white">
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
             DEPARTMENT
           </p>
         ),
         cell: (info) => (
-          <p className="text-sm text-navy-700 dark:text-white">
+          <p className="whitespace-nowrap text-xs text-navy-700 dark:text-white sm:text-sm">
             {info.getValue()}
           </p>
         ),
@@ -326,7 +338,7 @@ const Employee = () => {
             columnHelper.accessor("status", {
               id: "status",
               header: () => (
-                <p className="text-sm font-bold text-gray-600 dark:text-white">
+                <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
                   STATUS
                 </p>
               ),
@@ -344,21 +356,23 @@ const Employee = () => {
                       className="relative inline-flex cursor-pointer items-center transition hover:opacity-80"
                     >
                       <div
-                        className={`h-7 w-12 rounded-full transition ${
+                        className={`h-6 w-10 rounded-full transition sm:h-7 sm:w-12 ${
                           isActive
                             ? "bg-green-500 dark:bg-green-600"
                             : "bg-gray-300 dark:bg-gray-600"
                         }`}
                       >
                         <div
-                          className={`absolute top-0.5 h-6 w-6 rounded-full border border-gray-300 bg-white transition-all ${
-                            isActive ? "left-[4px] translate-x-6" : "left-[4px]"
+                          className={`absolute top-0.5 h-5 w-5 rounded-full border border-gray-300 bg-white transition-all sm:h-6 sm:w-6 ${
+                            isActive
+                              ? "left-[3px] translate-x-5 sm:left-[4px] sm:translate-x-6"
+                              : "left-[3px] sm:left-[4px]"
                           }`}
                         ></div>
                       </div>
                     </button>
                     <span
-                      className={`ml-3 text-sm font-bold ${
+                      className={`ml-2 whitespace-nowrap text-xs font-bold sm:ml-3 sm:text-sm ${
                         isActive
                           ? "text-green-600 dark:text-green-400"
                           : "text-red-600 dark:text-red-400"
@@ -376,18 +390,20 @@ const Employee = () => {
       columnHelper.accessor("id", {
         id: "docs",
         header: () => (
-          <p className="text-sm font-bold text-gray-600 dark:text-white">DOC</p>
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
+            DOC
+          </p>
         ),
         cell: (info) => {
           const emp = info.row.original;
           return (
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => handleViewDocuments(emp)}
-                className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+                className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900 sm:p-2"
                 title="Show Documents"
               >
-                <FaEye size={20} />
+                <FaEye size={18} className="sm:h-5 sm:w-5" />
               </button>
             </div>
           );
@@ -396,36 +412,27 @@ const Employee = () => {
       columnHelper.accessor("id", {
         id: "actions",
         header: () => (
-          <p className="text-sm font-bold text-gray-600 dark:text-white">
+          <p className="text-xs font-bold text-gray-600 dark:text-white sm:text-sm">
             ACTIONS
           </p>
         ),
         cell: (info) => {
           const emp = info.row.original;
           return (
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => handleEditEmployee(emp)}
-                className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+                className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900 sm:p-2"
                 title="Edit Employee"
               >
-                <MdEdit size={20} />
+                <MdEdit size={18} className="sm:h-5 sm:w-5" />
               </button>
-              {isSuperAdmin && (
-                <button
-                  onClick={() => handleDeleteEmployee(emp.id, emp.name)}
-                  className="rounded-lg p-2 text-red-600 transition hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
-                  title="Delete Employee"
-                >
-                  <MdDelete size={20} />
-                </button>
-              )}
             </div>
           );
         },
       }),
     ],
-    [isAdmin, togglingId]
+    [isAdmin, togglingId, currentPage]  // Added currentPage to dependencies
   );
 
   // Filter employees based on search term
@@ -484,64 +491,61 @@ const Employee = () => {
 
   return (
     <div className="mt-3 grid h-full grid-cols-1 gap-5">
-      {/* Debug Info - Remove after troubleshooting */}
-      {/* <div className="mb-4 p-4 bg-yellow-100 text-xs text-black rounded-lg">
-        <div><strong>Debug Info:</strong></div>
-        <div>Logged in user_id: {String(localStorage.getItem("user_id"))}</div>
-        <div>is_super_admin: {String(localStorage.getItem("is_super_admin"))}</div>
-        <div>All employees: <pre style={{whiteSpace: 'pre-wrap'}}>{JSON.stringify(employees, null, 2)}</pre></div>
-        <div>Filtered employees: <pre style={{whiteSpace: 'pre-wrap'}}>{JSON.stringify(filteredEmployees, null, 2)}</pre></div>
-      </div> */}
-      <Card extra={"w-full h-full px-6 pb-6 sm:overflow-x-auto"}>
-        <div className="relative flex items-center justify-between pt-4">
-          <div className="text-xl font-bold text-navy-700 dark:text-white">
-            Employee List ({filteredEmployees.length})
+      <Card extra={"w-full h-full px-4 pb-4 sm:px-6 sm:pb-6"}>
+        {/* Header Section - Responsive */}
+        <div className="flex flex-col gap-3 pt-4 sm:gap-4">
+          {/* Title and Add Button Row */}
+          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <div className="text-center text-lg font-bold text-navy-700 dark:text-white sm:text-left sm:text-xl">
+              Employee List ({filteredEmployees.length})
+            </div>
+            {isSuperAdmin && (
+              <button
+                onClick={() => {
+                  setIsEditMode(false);
+                  setEditingEmployee(null);
+                  setIsModalOpen(true);
+                }}
+                className="linear w-full rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white transition duration-200 hover:bg-brand-600 active:bg-brand-700 dark:bg-brand-400 dark:text-white dark:hover:bg-brand-500 dark:active:bg-brand-600 sm:w-auto sm:text-base"
+              >
+                + Add Employee
+              </button>
+            )}
           </div>
-          {isSuperAdmin && (
-            <button
-              onClick={() => {
-                setIsEditMode(false);
-                setEditingEmployee(null);
-                setIsModalOpen(true);
-              }}
-              className="linear rounded-lg bg-brand-500 px-6 py-2 text-base font-bold text-white transition duration-200 hover:bg-brand-600 active:bg-brand-700 dark:bg-brand-400 dark:text-white dark:hover:bg-brand-500 dark:active:bg-brand-600"
-            >
-              + Add Employee
-            </button>
-          )}
+
+          {/* Search Bar - Responsive */}
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search by name, email, role, department..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-sm text-navy-700 placeholder-gray-400 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:placeholder-gray-500 sm:px-4 sm:py-2.5"
+              />
+            </div>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="rounded-lg bg-red-100 px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800 sm:px-4 sm:py-2.5"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Search Input */}
-        <div className="mt-6 flex items-center gap-3">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search by name, email, role, department..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-navy-700 placeholder-gray-400 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:placeholder-gray-500"
-            />
-          </div>
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="rounded-lg bg-red-100 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        <div className="mt-8 overflow-x-auto">
+        {/* Table Section - Horizontal Scroll Enabled */}
+        <div className="mt-6 overflow-x-auto sm:mt-8">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400 sm:text-base">
                 Loading employees...
               </p>
             </div>
           ) : employees.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <p className="mb-4 text-gray-600 dark:text-gray-400">
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400 sm:text-base">
                 No employees found
               </p>
               <button
@@ -552,7 +556,7 @@ const Employee = () => {
               </button>
             </div>
           ) : (
-            <table className="w-full border-collapse">
+            <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr
@@ -562,7 +566,7 @@ const Employee = () => {
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
-                        className="px-4 py-3 text-left"
+                        className="px-2 py-2.5 text-left sm:px-4 sm:py-3"
                         onClick={header.column.getToggleSortingHandler()}
                         style={{ cursor: "pointer" }}
                       >
@@ -582,7 +586,7 @@ const Employee = () => {
                     className="border-b border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3">
+                      <td key={cell.id} className="px-2 py-2.5 sm:px-4 sm:py-3">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -603,7 +607,7 @@ const Employee = () => {
           itemsPerPage={ITEMS_PER_PAGE}
           totalItems={filteredEmployees.length}
           onPageChange={setCurrentPage}
-          className="mt-8 pb-4"
+          className="mt-6 pb-4 sm:mt-8"
         />
       </Card>
       <AddEmployeeModal
@@ -618,64 +622,66 @@ const Employee = () => {
         editingEmployee={editingEmployee}
       />
 
-      {/* Document Viewer Modal */}
+      {/* Document Viewer Modal - Responsive */}
       {documentModalOpen && selectedEmployeeForDocs && (
-        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            {/* Header */}
-            <div className="sticky top-0 flex items-center justify-between border border-b bg-white px-6 py-4">
+        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center p-3 backdrop-blur-sm sm:p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-navy-800 sm:rounded-2xl">
+            {/* Header - Responsive */}
+            <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-navy-800 sm:px-6 sm:py-4">
               <div>
-                <h2 className="text-black text-2xl font-bold">Documents</h2>
-                <p className="text-black text-sm">
+                <h2 className="text-lg font-bold text-navy-700 dark:text-white sm:text-2xl">
+                  Documents
+                </h2>
+                <p className="text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
                   {selectedEmployeeForDocs.name}
                 </p>
               </div>
               <button
                 onClick={() => setDocumentModalOpen(false)}
-                className="text-black text-3xl  font-bold transition hover:text-gray-200"
+                className="text-2xl font-bold text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-300 sm:text-3xl"
               >
                 ✕
               </button>
             </div>
 
-            {/* Documents List */}
-            <div className="space-y-3 p-6">
+            {/* Documents List - Responsive */}
+            <div className="space-y-2.5 p-4 sm:space-y-3 sm:p-6">
               {[
                 {
                   key: "sslcCertificate",
                   label: "SSLC Certificate",
-                  bgColor: "bg-purple-100",
-                  iconColor: "text-purple-600",
+                  bgColor: "bg-purple-100 dark:bg-purple-900",
+                  iconColor: "text-purple-600 dark:text-purple-300",
                 },
                 {
                   key: "relieving_letter",
                   label: "Relieving Letter",
-                  bgColor: "bg-orange-100",
-                  iconColor: "text-orange-600",
+                  bgColor: "bg-orange-100 dark:bg-orange-900",
+                  iconColor: "text-orange-600 dark:text-orange-300",
                 },
                 {
                   key: "bank_passbook",
                   label: "Bank Passbook",
-                  bgColor: "bg-indigo-100",
-                  iconColor: "text-indigo-600",
+                  bgColor: "bg-indigo-100 dark:bg-indigo-900",
+                  iconColor: "text-indigo-600 dark:text-indigo-300",
                 },
                 {
                   key: "salary_slips",
                   label: "Salary Slips",
-                  bgColor: "bg-yellow-100",
-                  iconColor: "text-yellow-600",
+                  bgColor: "bg-yellow-100 dark:bg-yellow-900",
+                  iconColor: "text-yellow-600 dark:text-yellow-300",
                 },
                 {
                   key: "aadhaar_card",
                   label: "Aadhaar",
-                  bgColor: "bg-pink-100",
-                  iconColor: "text-pink-600",
+                  bgColor: "bg-pink-100 dark:bg-pink-900",
+                  iconColor: "text-pink-600 dark:text-pink-300",
                 },
                 {
                   key: "pan_card",
                   label: "PAN Card",
-                  bgColor: "bg-blue-100",
-                  iconColor: "text-blue-600",
+                  bgColor: "bg-blue-100 dark:bg-blue-900",
+                  iconColor: "text-blue-600 dark:text-blue-300",
                 },
               ].map((doc) => {
                 const fileUrl = selectedEmployeeForDocs[doc.key];
@@ -687,7 +693,7 @@ const Employee = () => {
                   if (fileUrl.startsWith("http")) {
                     fullUrl = fileUrl;
                   } else {
-                    fullUrl = `https://insoluble-unseparately-delena.ngrok-free.dev/api${fileUrl}`;
+                    fullUrl = `${fileUrl}`;
                   }
                 }
 
@@ -696,27 +702,29 @@ const Employee = () => {
                 return (
                   <div
                     key={doc.key}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-4"
+                    className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-navy-700 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4"
                   >
-                    <div className="flex flex-1 items-center gap-4">
-                      <div className={`${doc.bgColor} rounded-lg p-3`}>
-                        <div className={`${doc.iconColor} text-2xl`}>📄</div>
+                    <div className="flex flex-1 items-center gap-3 sm:gap-4">
+                      <div className={`${doc.bgColor} rounded-lg p-2 sm:p-3`}>
+                        <div className={`${doc.iconColor} text-xl sm:text-2xl`}>
+                          <IoDocumentText />
+                        </div>
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-800">
+                        <p className="text-sm font-semibold text-navy-700 dark:text-white sm:text-base">
                           {doc.label}
                         </p>
                         {isUploaded ? (
                           <div>
-                            <p className="text-sm font-medium text-green-600">
+                            <p className="text-xs font-medium text-green-600 dark:text-green-400 sm:text-sm">
                               Uploaded
                             </p>
-                            <p className="mt-1 break-all text-xs text-gray-500">
+                            <p className="mt-0.5 break-all text-[10px] text-gray-500 dark:text-gray-400 sm:mt-1 sm:text-xs">
                               {fileName}
                             </p>
                           </div>
                         ) : (
-                          <p className="text-sm font-medium text-red-500">
+                          <p className="text-xs font-medium text-red-500 dark:text-red-400 sm:text-sm">
                             Not uploaded
                           </p>
                         )}
@@ -727,7 +735,7 @@ const Employee = () => {
                         href={fullUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="whitespace-nowrap rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600"
+                        className="w-full whitespace-nowrap rounded-lg bg-brand-500 px-3 py-1.5 text-center text-xs font-medium text-white transition hover:bg-brand-600 sm:w-auto sm:px-4 sm:py-2 sm:text-sm"
                       >
                         View/Download
                       </a>
@@ -736,16 +744,6 @@ const Employee = () => {
                 );
               })}
             </div>
-
-            {/* Footer */}
-            {/* <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setDocumentModalOpen(false)}
-                className="px-8 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition font-medium"
-              >
-                Close
-              </button>
-            </div> */}
           </div>
         </div>
       )}

@@ -9,17 +9,36 @@ export default function Pagination({
   className = "",
 }) {
   const startIndex = (currentPage - 1) * itemsPerPage;
+  // Helper to get visible page numbers (max 3)
+  const getVisiblePages = () => {
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage === 1) {
+      return [1, 2, 3];
+    }
+    if (currentPage === totalPages) {
+      return [totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [currentPage - 1, currentPage, currentPage + 1];
+  };
+  const visiblePages = getVisiblePages();
+
   return (
     totalPages > 1 && (
       <div
         className={
           (className ? `${className} ` : "") +
-          "flex flex-col items-center justify-center justify-center gap-4 border-t border-gray-200 bg-gray-50 px-4 py-6 dark:border-gray-700 dark:bg-navy-700 sm:flex-row sm:justify-center md:gap-3 md:py-4"
+          "flex flex-col items-center justify-center gap-4 border-t border-gray-200 bg-gray-50 px-4 py-6 dark:border-gray-700 dark:bg-navy-700 sm:flex-row sm:justify-center md:gap-3 md:py-4"
         }
       >
+        {/* Mobile summary */}
         <p className="text-xs text-gray-600 dark:text-gray-400 sm:hidden">
-          {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)}{" "}
-          of {totalItems}
+          Showing <span className="font-bold">{startIndex + 1}</span> to{" "}
+          <span className="font-bold">
+            {Math.min(startIndex + itemsPerPage, totalItems)}
+          </span>{" "}
+          of <span className="font-bold">{totalItems}</span>
         </p>
         <div className="flex items-center gap-2 sm:gap-1">
           <button
@@ -30,7 +49,7 @@ export default function Pagination({
             Previous
           </button>
           <div className="flex items-center gap-1 sm:gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {visiblePages.map((page) => (
               <button
                 key={page}
                 onClick={() => onPageChange(page)}

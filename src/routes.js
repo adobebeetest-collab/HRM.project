@@ -1,91 +1,75 @@
-import React from "react";
-
-// Admin Imports
-import MainDashboard from "views/admin/default";
-import NFTMarketplace from "views/admin/marketplace";
-import Profile from "views/admin/profile";
-import DataTables from "views/admin/tables";
-import RTLDefault from "views/rtl/default";
-import Employee from "views/admin/employee/index.jsx";
-import LeaveRequests from "views/admin/leaveRequests/index.jsx";
-import Assets from "views/admin/assets/index.jsx";
-import CalendarPage from "views/admin/calendar/index.jsx";
-import { HiUserGroup } from "react-icons/hi";
-// Auth Imports
-import SignIn from "views/auth/SignIn";
-
-// Icon Imports
 import {
   MdHome,
-  MdOutlineShoppingCart,
-  MdBarChart,
   MdPerson,
   MdLock,
 } from "react-icons/md";
 import { FaCalendar, FaBox } from "react-icons/fa";
+import { HiUserGroup } from "react-icons/hi";
 
-const isSuperAdmin = localStorage.getItem("is_super_admin") === "true" || localStorage.getItem("is_super_admin") === true;
+import Dashboard from "views/admin/default";
+import Employee from "views/admin/employee";
+import LeaveRequests from "views/admin/leaveRequests";
+import Assets from "views/admin/assets";
+import CalendarPage from "views/admin/calendar";
+import Profile from "views/admin/profile";
+import SignIn from "views/auth/SignIn";
 
 const routes = [
   {
     name: "Dashboard",
     layout: "/admin",
-    path: "Dashboard",
-    icon: <MdHome className="h-6 w-6" />,
-    component: <MainDashboard />,
+    path: "dashboard",
+    icon: <MdHome className="h-5 w-5"  color="blue"/>,
+    component: <Dashboard />,
+    roles: ["admin", "super_admin"],
   },
-  //   {
-  //   name: "Dashboard",
-  //   layout: "/admin",
-  //   path: "employee-dashboard",
-  //   icon: <MdHome className="h-6 w-6" />,
-  //   component: <MainDashboard />,
-  // },
   {
     name: "Employee",
     layout: "/admin",
     path: "employee",
-    icon: <HiUserGroup className="h-6 w-6" />,
+    icon: <HiUserGroup className="h-5 w-5"  color="blue"/>,
     component: <Employee />,
-    secondary: true,
+    roles: ["admin", "super_admin"],
   },
   {
     name: "Leave Requests",
     layout: "/admin",
     path: "leave-requests",
-    icon: <FaCalendar className="h-6 w-6" />,
+    icon: <FaCalendar className="h-5 w-5" color="blue" />,
     component: <LeaveRequests />,
+    roles: ["admin", "super_admin"],
   },
-  // Only show Assets if super admin
-  ...(isSuperAdmin ? [
-    {
-      name: "Assets",
-      layout: "/admin",
-      path: "assets",
-      icon: <FaBox className="h-6 w-6" />,
-      component: <Assets />,
-    }
-  ] : []),
+  {
+    name: "Assets",
+    layout: "/admin",
+    path: "assets",
+    icon: <FaBox className="h-5 w-5"  color="blue" />,
+    component: <Assets />,
+    roles: ["super_admin"], 
+  },
   {
     name: "Calendar",
     layout: "/admin",
     path: "calendar",
-    icon: <FaCalendar className="h-6 w-6" />,
+    icon: <FaCalendar className="h-5 w-5"  color="blue"/>,
     component: <CalendarPage />,
+    roles: ["admin", "super_admin"],
   },
   {
     name: "Profile",
     layout: "/admin",
     path: "profile",
-    icon: <MdPerson className="h-6 w-6" />,
+    icon: <MdPerson className="h-5 w-5"  color="blue"/>,
     component: <Profile />,
+    roles: ["admin", "super_admin"],
   },
   {
     name: "Sign In",
     layout: "/auth",
     path: "sign-in",
-    icon: <MdLock className="h-6 w-6" />,
+    icon: <MdLock className="h-5 w-5"  color="blue" />,
     component: <SignIn />,
   },
 ];
+
 export default routes;

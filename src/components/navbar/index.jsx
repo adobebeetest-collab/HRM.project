@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Dropdown from "components/dropdown";
 import { FiAlignJustify } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
@@ -16,7 +16,9 @@ import { useAuth } from "contexts/AuthContext";
 import { toast } from "react-toastify";
 
 const Navbar = (props) => {
-  const { onOpenSidenav, brandText } = props;
+  const { onOpenSidenav, onCloseSidenav, brandText } = props;
+  // Local state to track sidebar open/close if both handlers are not provided
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkmode, setDarkmode] = React.useState(false);
   const { user, name, isSuperAdmin, logout, email } = useAuth();
   const navigate = useNavigate();
@@ -38,30 +40,13 @@ const Navbar = (props) => {
   return (
     <nav className="sticky top-4 z-40 flex flex-row flex-wrap items-center justify-between rounded-xl bg-white/10 p-2 backdrop-blur-xl dark:bg-[#0b14374d]">
       <div className="ml-[6px]">
-        <div className="h-6 w-[224px] pt-1">
-          <a
-            className="text-sm font-normal text-navy-700 hover:underline dark:text-white dark:hover:text-white"
-            href="javascript:void(0)"
-          >
-            Pages
-            <span className="mx-1 text-sm text-navy-700 hover:text-navy-700 dark:text-white">
-              {" "}
-              /{" "}
-            </span>
-          </a>
-          <Link
-            className="text-sm font-normal capitalize text-navy-700 hover:underline dark:text-white dark:hover:text-white"
-            to="#"
-          >
-            {brandText}
-          </Link>
-        </div>
         <p className="shrink text-[33px] capitalize text-navy-700 dark:text-white">
           <Link
             to="#"
             className="font-bold capitalize hover:text-navy-700 dark:hover:text-white"
           >
             {brandText}
+            <span></span>
           </Link>
         </p>
       </div>
@@ -79,7 +64,20 @@ const Navbar = (props) => {
         </div>
         <span
           className="flex cursor-pointer text-xl text-gray-600 dark:text-white xl:hidden"
-          onClick={onOpenSidenav}
+          onClick={() => {
+            if (onOpenSidenav && onCloseSidenav) {
+              // If both handlers are provided, toggle based on local state
+              if (sidebarOpen) {
+                onCloseSidenav();
+              } else {
+                onOpenSidenav();
+              }
+              setSidebarOpen((prev) => !prev);
+            } else if (onOpenSidenav) {
+              // If only open handler is provided, just call it
+              onOpenSidenav();
+            }
+          }}
         >
           <FiAlignJustify className="h-5 w-5" />
         </span>
@@ -165,23 +163,29 @@ const Navbar = (props) => {
                 {isSuperAdmin ? (
                   <div className="flex flex-col items-start">
                     <p className="text-sm font-bold text-navy-700 dark:text-white">
-                      Super Admin
+                      Hey ,Admin
                     </p>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-navy-700 dark:text-white">
-                        Hey,{" "}
-                        {userDisplayName.charAt(0).toUpperCase() +
-                          userDisplayName.slice(1)}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <EmployeeProfileImage
+                        employeeId={userId}
+                        style={{ height: 32, width: 32, borderRadius: "50%" }}
+                      />
+                      <div>
+                        <p className="text-sm font-bold text-navy-700 dark:text-white">
+                          Hey,{" "}
+                          {userDisplayName.charAt(0).toUpperCase() +
+                            userDisplayName.slice(1)}
+                        </p>
+                        {userEmail && (
+                          <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                            Email: {userEmail}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {userEmail && (
-                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                        Email: {userEmail}
-                      </p>
-                    )}
                   </>
                 )}
               </div>
@@ -194,13 +198,12 @@ const Navbar = (props) => {
                 >
                   Profile Settings
                 </Link>
-                <a
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
+                <Link
+                  to="/admin/calendar"
                   className="mt-3 text-sm text-gray-800 dark:text-white hover:dark:text-white"
                 >
-                  Newsletter Settings
-                </a>
+                  Calender
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="mt-3 w-full cursor-pointer border-none bg-none p-0 text-left text-sm font-medium text-red-500 transition duration-150 ease-out hover:text-red-500 hover:ease-in"

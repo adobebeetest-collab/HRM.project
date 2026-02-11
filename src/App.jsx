@@ -24,7 +24,7 @@ const ProtectedApp = () => {
       <Route path="auth/*" element={<AuthLayout />} />
       <Route path="admin/*" element={isAuthenticated ? <AdminLayout /> : <Navigate to="/auth/sign-in" replace />} />
       <Route path="rtl/*" element={isAuthenticated ? <RtlLayout /> : <Navigate to="/auth/sign-in" replace />} />
-      <Route path="/" element={isAuthenticated ? <Navigate to="/admin/default" replace /> : <Navigate to="/auth/sign-in" replace />} />
+      <Route path="/" element={isAuthenticated ? <Navigate to="/admin/Dashboard" replace /> : <Navigate to="/auth/sign-in" replace />} />
     </Routes>
   );
 };

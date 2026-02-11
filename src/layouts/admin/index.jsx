@@ -1,28 +1,50 @@
 import React from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import Navbar from "components/navbar";
 import Sidebar from "components/sidebar";
 import Footer from "components/footer/Footer";
 import routes from "routes.js";
+import { useAuth } from "contexts/AuthContext";
 
 export default function Admin(props) {
   const { ...rest } = props;
   const location = useLocation();
-  // Sidebar open by default only on desktop
-  const [open, setOpen] = React.useState(() => window.innerWidth >= 1200);
-  const [currentRoute, setCurrentRoute] = React.useState("Main Dashboard");
+  const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
+  // Sidebar closed by default on mobile, open on desktop
+  const [open, setOpen] = React.useState(window.innerWidth >= 1200);
+  const [currentRoute, setCurrentRoute] = React.useState("Dashboard");
 
   React.useEffect(() => {
-    window.addEventListener("resize", () =>
-      window.innerWidth < 1200 ? setOpen(false) : setOpen(true)
-    );
+    const handleResize = () => {
+      setOpen(window.innerWidth >= 1200);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
   React.useEffect(() => {
     getActiveRoute(routes);
   }, [location.pathname]);
 
+  // Restrict navigation to only allowed routes
+  React.useEffect(() => {
+    const allowedPaths = routes.map((r) => `/admin/${r.path.toLowerCase()}`);
+    // Restrict /admin/assets to only super admins
+    if (location.pathname.toLowerCase() === "/admin/assets" && !isSuperAdmin) {
+      navigate("/admin/Dashboard", { replace: true });
+    } else if (!allowedPaths.includes(location.pathname.toLowerCase())) {
+      navigate("/admin/Dashboard", { replace: true });
+    }
+  }, [location.pathname, isSuperAdmin]);
+
   const getActiveRoute = (routes) => {
-    let activeRoute = "Main Dashboard";
+    let activeRoute = "Dashboard";
     for (let i = 0; i < routes.length; i++) {
       if (
         window.location.href.indexOf(
@@ -71,6 +93,7 @@ export default function Admin(props) {
           <div className="h-full">
             <Navbar
               onOpenSidenav={() => setOpen(true)}
+              onCloseSidenav={() => setOpen(false)}
               logoText={"Horizon UI Tailwind React"}
               brandText={currentRoute}
               secondary={getActiveNavbar(routes)}

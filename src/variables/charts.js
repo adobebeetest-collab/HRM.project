@@ -1,3 +1,106 @@
+// Department-wise Employees Bar Chart (Horizontal)
+export const getDepartmentBarChartData = (apiData) => {
+  if (!apiData || !Array.isArray(apiData)) return [];
+
+
+  // apiData should be an array of objects: [{ department: 'Human resource', employee_count: 0 }, ...]
+  const employeeCounts = apiData.map((dep) => dep.employee_count || 0);
+  return [
+    {
+      name: "Employees",
+      data: employeeCounts,
+      color: "#FF8800",
+    },
+  ];
+};
+
+export const getDepartmentBarChartOptions = (apiData) => {
+  if (!apiData || !Array.isArray(apiData)) return {};
+
+  const departments = apiData.map(
+    (dep) => dep.department || "Unknown"
+  );
+
+  return {
+    chart: {
+      type: "bar",
+      toolbar: { show: false },
+    },
+
+    plotOptions: {
+      bar: {
+        horizontal: true,
+        barHeight: "40%",
+        borderRadius: 10,
+      },
+    },
+
+    dataLabels: {
+      enabled: false,
+    },
+
+    // 🔥 SAME COLOR AS DAILY TRAFFIC
+    fill: {
+      type: "gradient",
+      gradient: {
+        type: "horizontal", // horizontal for department chart
+        shadeIntensity: 1,
+        opacityFrom: 1,
+        opacityTo: 1,
+        colorStops: [
+          [
+            {
+              offset: 0,
+              color: "#4318FF", // EXACT Daily Traffic blue
+              opacity: 1,
+            },
+            {
+              offset: 100,
+              color: "rgba(67, 24, 255, 0.28)", // light blue / white feel
+              opacity: 1,
+            },
+          ],
+        ],
+      },
+    },
+
+    xaxis: {
+      categories: departments,
+      labels: {
+        style: {
+          colors: "#A3AED0",
+          fontSize: "12px",
+          fontWeight: "400",
+        },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+
+    yaxis: {
+      labels: {
+        style: {
+          colors: "#A3AED0",
+          fontSize: "13px",
+          fontFamily: "DM Sans, Inter, sans-serif",
+        },
+      },
+    },
+
+    tooltip: {
+      theme: "dark",
+      y: {
+        formatter: (val) => `${val} Employees`,
+      },
+    },
+
+    grid: {
+      show: false,
+    },
+  };
+};
+
+
 export const barChartDataDailyTraffic = [
   {
     name: "Daily Traffic",
@@ -15,7 +118,7 @@ export const barChartOptionsDailyTraffic = {
     style: {
       fontSize: "12px",
       fontFamily: undefined,
-      backgroundColor: "#000000"
+      backgroundColor: "#000000",
     },
     onDatasetHover: {
       style: {
@@ -141,7 +244,7 @@ export const pieChartOptions = {
     style: {
       fontSize: "12px",
       fontFamily: undefined,
-      backgroundColor: "#000000"
+      backgroundColor: "#000000",
     },
   },
 };
@@ -151,17 +254,17 @@ export const pieChartData = [63, 25, 12];
 export const barChartDataWeeklyRevenue = [
   {
     name: "PRODUCT A",
-    data: [400, 370, 330, 390, 320, 350, 360, 320, 380],
+    data: [400, 370, 330, 390, 320, 350, 360],
     color: "#6AD2Fa",
   },
   {
     name: "PRODUCT B",
-    data: [400, 370, 330, 390, 320, 350, 360, 320, 380],
+    data: [400, 370, 330, 390, 320, 350, 360],
     color: "#4318FF",
   },
   {
     name: "PRODUCT C",
-    data: [400, 370, 330, 390, 320, 350, 360, 320, 380],
+    data: [400, 370, 330, 390, 320, 350, 360],
     color: "#EFF4FB",
   },
 ];
@@ -173,14 +276,13 @@ export const barChartOptionsWeeklyRevenue = {
       show: false,
     },
   },
-  // colors:['#ff3322','#faf']
   tooltip: {
     style: {
       fontSize: "12px",
       fontFamily: undefined,
-      backgroundColor: "#000000"
+      backgroundColor: "#000000",
     },
-    theme: 'dark',
+    theme: "dark",
     onDatasetHover: {
       style: {
         fontSize: "12px",
@@ -189,7 +291,7 @@ export const barChartOptionsWeeklyRevenue = {
     },
   },
   xaxis: {
-    categories: ["17", "18", "19", "20", "21", "22", "23", "24", "25"],
+    categories: ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
     show: false,
     labels: {
       show: true,
@@ -218,7 +320,6 @@ export const barChartOptionsWeeklyRevenue = {
       },
     },
   },
-
   grid: {
     borderColor: "rgba(163, 174, 208, 0.3)",
     show: true,
@@ -273,32 +374,28 @@ export const lineChartOptionsTotalSpent = {
   legend: {
     show: false,
   },
-
   theme: {
     mode: "light",
   },
   chart: {
     type: "line",
-
     toolbar: {
       show: false,
     },
   },
-
   dataLabels: {
     enabled: false,
   },
   stroke: {
     curve: "smooth",
   },
-
   tooltip: {
     style: {
       fontSize: "12px",
       fontFamily: undefined,
-      backgroundColor: "#000000"
+      backgroundColor: "#000000",
     },
-    theme: 'dark',
+    theme: "dark",
     x: {
       format: "dd/MM/yy HH:mm",
     },
@@ -324,7 +421,6 @@ export const lineChartOptionsTotalSpent = {
     range: undefined,
     categories: ["SEP", "OCT", "NOV", "DEC", "JAN", "FEB"],
   },
-
   yaxis: {
     show: false,
   },

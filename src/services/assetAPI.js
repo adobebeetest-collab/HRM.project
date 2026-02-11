@@ -1,4 +1,11 @@
-import { apiPost, apiGet, apiUpdate, apiDelete, apiPostFormData, apiPutFormData } from './apiHelper';
+import {
+  apiPost,
+  apiGet,
+  apiUpdate,
+  apiDelete,
+  apiPostFormData,
+  apiPutFormData,
+} from "./apiHelper";
 
 /**
  * Asset Management API endpoints
@@ -10,7 +17,7 @@ const assetAPI = {
    * @param {function} onError - Error callback
    */
   getAllAssets: (onSuccess, onError) =>
-    apiGet('/asset/get-all/', onSuccess, onError),
+    apiGet("/asset/get-all/", onSuccess, onError),
 
   /**
    * Get asset by ID
@@ -28,7 +35,7 @@ const assetAPI = {
    * @param {function} onError - Error callback
    */
   createAsset: (assetData, onSuccess, onError) =>
-    apiPostFormData('/asset/Asset-post/', assetData, onSuccess, onError),
+    apiPostFormData("/asset/Asset-post/", assetData, onSuccess, onError),
 
   /**
    * Update asset
@@ -55,7 +62,7 @@ const assetAPI = {
    * @param {function} onError - Error callback
    */
   getCategories: (onSuccess, onError) =>
-    apiGet('/asset/categories/', onSuccess, onError),
+    apiGet("/asset/categories/", onSuccess, onError),
 
   /**
    * Get asset types
@@ -63,7 +70,7 @@ const assetAPI = {
    * @param {function} onError - Error callback
    */
   getAssetTypes: (onSuccess, onError) =>
-    apiGet('/asset/get-types/', onSuccess, onError),
+    apiGet("/asset/get-types/", onSuccess, onError),
 
   /**
    * Get asset brands
@@ -71,7 +78,7 @@ const assetAPI = {
    * @param {function} onError - Error callback
    */
   getBrands: (onSuccess, onError) =>
-    apiGet('/asset/get-brands/', onSuccess, onError),
+    apiGet("/asset/get-brands/", onSuccess, onError),
 
   /**
    * Get asset models
@@ -79,7 +86,7 @@ const assetAPI = {
    * @param {function} onError - Error callback
    */
   getModels: (onSuccess, onError) =>
-    apiGet('/asset/get-models/', onSuccess, onError),
+    apiGet("/asset/get-models/", onSuccess, onError),
 
   /**
    * Get asset variants
@@ -87,7 +94,7 @@ const assetAPI = {
    * @param {function} onError - Error callback
    */
   getVariants: (onSuccess, onError) =>
-    apiGet('/asset/get-variants/', onSuccess, onError),
+    apiGet("/asset/get-variants/", onSuccess, onError),
 
   /**
    * Assign asset to employee

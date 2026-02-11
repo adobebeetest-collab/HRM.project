@@ -14,13 +14,25 @@ import leaveAPI from "services/leaveAPI";
 import { showSuccess, showError } from "utils/toastHelper";
 import { MdEdit } from "react-icons/md";
 import LeavePermissionRequest from "components/leave/LeavePermissionRequest";
+import maleProfile from "assets/img/avatars/male_profile.png";
+import femaleProfile from "assets/img/avatars/female_profile.png";
+
+import employeeAPI from "services/employeeAPI";
 
 export default function LeaveRequestsList() {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() => {
+    // Check for filter in localStorage (set by dashboard click)
+    const filter = localStorage.getItem("leave_status_filter");
+    if (filter) {
+      localStorage.removeItem("leave_status_filter");
+      return filter;
+    }
+    return "all";
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -29,7 +41,6 @@ export default function LeaveRequestsList() {
   // New states for edit functionality
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [editRequestData, setEditRequestData] = useState(null);
-  console.log("0000000000000000", editRequestData);
   // Cache states for pre-loaded data
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [requestTypes, setRequestTypes] = useState([]);
@@ -42,6 +53,7 @@ export default function LeaveRequestsList() {
 
   // Expanded text states
   const [expandedReasons, setExpandedReasons] = useState({});
+  const isCompleted = localStorage.getItem("isCompleted");
 
   const itemsPerPage = 10;
 
@@ -51,7 +63,6 @@ export default function LeaveRequestsList() {
     const storedUserName = localStorage.getItem("user_name");
     const userEmail = localStorage.getItem("user_email");
     const isSuperAdmin = localStorage.getItem("is_super_admin");
-    // const userId = localStorage.getItem('user_id');
 
     // Check if user is super admin (is_super_admin must be true)
     const isAdminUser = isSuperAdmin === "true" || isSuperAdmin === true;
@@ -113,12 +124,9 @@ export default function LeaveRequestsList() {
           requestsArray = data.leave;
         }
 
-        // Log first request to see field names
-        // if (requestsArray.length > 0) {
-        // }
-
         setLeaveRequests(requestsArray);
         setLoading(false);
+        localStorage.setItem("isCompleted", "false");
       },
       (error) => {
         showError("Failed to load leave requests");
@@ -128,13 +136,25 @@ export default function LeaveRequestsList() {
     );
   };
 
-  // Filter requests based on status and search term
+  useEffect(() => {
+    loadLeaveRequests();
+  }, [localStorage.getItem("isCompleted")]);
+
+  // Filter requests based on status, search term, and today's date
+  const today = new Date();
+  const todayDateString = today.toISOString().split("T")[0]; // 'YYYY-MM-DD'
+
+  // Get date filter from localStorage
+  const dateFilter = localStorage.getItem("leave_date_filter");
+
+  // CONDITIONAL FILTER LOGIC - Supports both date filtering and showing all
   const filteredRequests = leaveRequests.filter((request) => {
     const statusLower = request.status
       ? String(request.status).toLowerCase()
       : "";
     const matchesStatus =
       statusFilter === "all" || statusLower === statusFilter;
+
     const matchesSearch =
       !searchTerm ||
       request.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -143,7 +163,24 @@ export default function LeaveRequestsList() {
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       request.role_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
+
+    // Conditional date filtering
+    // If dateFilter exists and is not empty, apply date filter
+    // Otherwise, show all dates (no date restriction)
+    let matchesDate = true; // Default: show all dates
+
+    if (dateFilter && dateFilter !== "") {
+      // DATE FILTER ACTIVE - Use created_at for date comparison
+      const requestDate = request.created_at
+        ? new Date(request.created_at).toISOString().split("T")[0]
+        : request.date
+        ? request.date
+        : "";
+      matchesDate = requestDate === dateFilter;
+    }
+    // If no dateFilter, matchesDate stays true, showing all dates
+
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
   // Pagination
@@ -269,14 +306,34 @@ export default function LeaveRequestsList() {
     return `${diffDays} Days`;
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
+  const [employee, setEmployee] = useState(null);
+  const userId =
+    localStorage.getItem("employee_id") || localStorage.getItem("user_id");
 
-      {/* Filters */}
-      <div className="grid gap-4 md:grid-cols-3">
+  useEffect(() => {
+    if (userId) {
+      employeeAPI.getEmployeeById(
+        userId,
+        (data) => {
+          // Try to handle different API response shapes
+          let emp = data?.data || data?.results || data;
+          // If array, take first
+          if (Array.isArray(emp)) emp = emp[0];
+          setEmployee(emp);
+        },
+        (error) => {
+          setEmployee({ error: true });
+        }
+      );
+    }
+  }, [userId]);
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Filters - Updated Grid */}
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3">
         <div>
-          <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
+          <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
             Search by Name or Type
           </label>
           <input
@@ -287,12 +344,12 @@ export default function LeaveRequestsList() {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-navy-700 placeholder-gray-400 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white"
+            className="w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs text-navy-700 placeholder-gray-400 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white sm:px-4 sm:py-2.5 sm:text-sm"
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-bold text-navy-700 dark:text-white">
+          <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
             Filter by Status
           </label>
           <select
@@ -301,7 +358,7 @@ export default function LeaveRequestsList() {
               setStatusFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-navy-700 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white"
+            className="w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs text-navy-700 transition focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white sm:px-4 sm:py-2.5 sm:text-sm"
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
@@ -309,16 +366,18 @@ export default function LeaveRequestsList() {
             <option value="rejected">Rejected</option>
           </select>
         </div>
-      
-       
+
+        <div>
+          <LeavePermissionRequest onClose={loadLeaveRequests} />
+        </div>
       </div>
 
       {/* Loading State */}
       {loading && (
-        <div className="flex items-center justify-center rounded-lg bg-white p-12 dark:bg-navy-800">
+        <div className="flex items-center justify-center rounded-lg bg-white p-8 dark:bg-navy-800 sm:p-12">
           <div className="text-center">
-            <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-brand-500"></div>
-            <p className="mt-4 text-navy-700 dark:text-white">
+            <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-brand-500 sm:h-12 sm:w-12"></div>
+            <p className="mt-4 text-xs text-navy-700 dark:text-white sm:text-sm">
               Loading requests...
             </p>
           </div>
@@ -327,9 +386,9 @@ export default function LeaveRequestsList() {
 
       {/* No Data State */}
       {!loading && paginatedRequests.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-lg bg-white p-12 dark:bg-navy-800">
-          <FaCalendar className="text-5xl text-gray-300 dark:text-gray-600" />
-          <p className="mt-4 text-center text-gray-600 dark:text-gray-400">
+        <div className="flex flex-col items-center justify-center rounded-lg bg-white p-8 dark:bg-navy-800 sm:p-12">
+          <FaCalendar className="text-4xl text-gray-300 dark:text-gray-600 sm:text-5xl" />
+          <p className="mt-4 text-center text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
             {leaveRequests.length === 0
               ? "No leave requests yet"
               : "No matching requests found"}
@@ -344,6 +403,9 @@ export default function LeaveRequestsList() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-navy-700">
+                  <th className="px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
+                    S.No
+                  </th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-navy-700 dark:text-white">
                     Employee
                   </th>
@@ -373,10 +435,30 @@ export default function LeaveRequestsList() {
                     key={request.id || index}
                     className="border-b border-gray-200 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-navy-700"
                   >
+                    <td className="px-4 py-4 font-bold text-navy-700 dark:text-white">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900">
-                          <FaUser className="text-brand-600 dark:text-brand-300" />
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-100 dark:bg-brand-900">
+                          <img
+                            className="h-full w-full rounded-full object-cover"
+                            src={
+                              request?.profile_picture &&
+                              request.profile_picture.trim() !== ""
+                                ? request.profile_picture.startsWith("data:")
+                                  ? request.profile_picture
+                                  : `${request.profile_picture}`
+                                : request?.gender?.trim().toLowerCase() ===
+                                  "male"
+                                ? maleProfile
+                                : request?.gender?.trim().toLowerCase() ===
+                                  "female"
+                                ? femaleProfile
+                                : maleProfile
+                            }
+                            alt="Profile"
+                          />
                         </div>
                         <div>
                           <p className="font-bold text-navy-700 dark:text-white">
@@ -415,7 +497,7 @@ export default function LeaveRequestsList() {
                     <td className="px-6 py-4">
                       <span className="text-navy-700 dark:text-white">
                         {request.request_type === "Permission"
-                          ? `${request.duration}Hrs`
+                          ? `2 Hours`
                           : `${calculateDuration(
                               request.from_date,
                               request.to_date
@@ -511,8 +593,40 @@ export default function LeaveRequestsList() {
                   Previous
                 </button>
                 <div className="flex items-center gap-1 sm:gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => (
+                  {(() => {
+                    if (totalPages <= 3) {
+                      return Array.from(
+                        { length: totalPages },
+                        (_, i) => i + 1
+                      ).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`rounded-lg px-2 py-2 text-xs font-bold transition sm:px-3 ${
+                            currentPage === page
+                              ? "bg-blue-500 text-white"
+                              : "border-2 border-gray-200 bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ));
+                    }
+                    // Sliding window logic
+                    let start = currentPage - 1;
+                    let end = currentPage + 1;
+                    if (start < 1) {
+                      start = 1;
+                      end = 3;
+                    }
+                    if (end > totalPages) {
+                      end = totalPages;
+                      start = Math.max(1, end - 2);
+                    }
+                    return Array.from(
+                      { length: end - start + 1 },
+                      (_, i) => start + i
+                    ).map((page) => (
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
@@ -524,8 +638,8 @@ export default function LeaveRequestsList() {
                       >
                         {page}
                       </button>
-                    )
-                  )}
+                    ));
+                  })()}
                 </div>
                 <button
                   onClick={() =>
@@ -544,14 +658,14 @@ export default function LeaveRequestsList() {
 
       {/* Details Modal */}
       {showDetailsModal && selectedRequest && (
-        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-navy-800">
+        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-2 backdrop-blur-sm sm:p-4">
+          <div className="relative max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-navy-800 sm:rounded-2xl">
             {/* Modal Header */}
-            <div className="sticky top-0 border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-navy-800">
+            <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-navy-800 sm:px-6 sm:py-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FaCalendar className="text-xl text-brand-500" />
-                  <h2 className="text-2xl font-bold text-navy-700 dark:text-white">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <FaCalendar className="text-base text-brand-500 sm:text-lg md:text-xl" />
+                  <h2 className="text-sm font-bold text-navy-700 dark:text-white sm:text-base md:text-lg lg:text-2xl">
                     Leave Request Details
                   </h2>
                 </div>
@@ -560,7 +674,7 @@ export default function LeaveRequestsList() {
                     onClick={() => {
                       setShowDetailsModal(false);
                     }}
-                    className="text-2xl font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="text-xl font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 sm:text-2xl"
                   >
                     ✕
                   </button>
@@ -569,57 +683,165 @@ export default function LeaveRequestsList() {
             </div>
 
             {/* Modal Content */}
-            <div className="space-y-6 p-6">
-              {/* Employee Information */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <FaUser className="text-navy-700 dark:text-white" />
-                  <h3 className="text-lg font-bold text-navy-700 dark:text-white">
-                    Employee Information
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4 dark:bg-navy-700">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Name
-                    </p>
-                    <p className="font-bold text-navy-700 dark:text-white">
-                      {selectedRequest.employee_name || "-"}
-                    </p>
-                  </div>
-                  {/* Show Department and Role if:
-                        - Not admin (isAdmin === false), or
-                        - Admin viewing someone else's request (selectedRequest.employee_name !== userName)
-                  */}
-                  {(!isAdmin ||
-                    (isAdmin &&
-                      selectedRequest.employee_name !== userName)) && (
-                    <>
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Department
-                        </p>
-                        <p className="font-bold text-navy-700 dark:text-white">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+                {/* Employee Name with Profile Picture */}
+                <div className="lg:col-span-2">
+                  <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                    Employee
+                  </label>
+                  <div className="flex items-center gap-2 rounded-lg border-2 border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-navy-700 sm:gap-3 sm:p-3">
+                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-100 dark:bg-brand-900 sm:h-12 sm:w-12">
+                      <img
+                        className="h-full w-full rounded-full object-cover"
+                        src={
+                          selectedRequest?.profile_picture &&
+                          selectedRequest.profile_picture.trim() !== ""
+                            ? selectedRequest.profile_picture.startsWith(
+                                "data:"
+                              )
+                              ? selectedRequest.profile_picture
+                              : `${selectedRequest.profile_picture}`
+                            : selectedRequest?.gender?.trim().toLowerCase() ===
+                              "male"
+                            ? maleProfile
+                            : selectedRequest?.gender?.trim().toLowerCase() ===
+                              "female"
+                            ? femaleProfile
+                            : maleProfile
+                        }
+                        alt="Profile"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                        {selectedRequest.employee_name || "-"}
+                      </p>
+                      {!(
+                        isAdmin && selectedRequest.employee_name === userName
+                      ) && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {selectedRequest.department_name || "-"}
                         </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Role
-                        </p>
-                        <p className="font-bold text-navy-700 dark:text-white">
-                          {selectedRequest.role_name || "-"}
-                        </p>
-                      </div>
-                    </>
-                  )}
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Department - Only show if not admin's own request */}
+                {(!isAdmin ||
+                  (isAdmin && selectedRequest.employee_name !== userName)) && (
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Status
-                    </p>
+                    <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                      Department
+                    </label>
+                    <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                      <span className="text-xs font-semibold text-navy-700 dark:text-white sm:text-sm">
+                        {selectedRequest?.department_name &&
+                        selectedRequest.department_name === "N/A"
+                          ? "-"
+                          : selectedRequest.department_name || "-"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Role - Only show if not admin's own request */}
+                {(!isAdmin ||
+                  (isAdmin && selectedRequest.employee_name !== userName)) && (
+                  <div>
+                    <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                      Role
+                    </label>
+                    <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                      <span className="text-xs font-semibold text-navy-700 dark:text-white sm:text-sm">
+                        {selectedRequest.role_name || "-"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Request Type */}
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                    Request Type
+                  </label>
+                  <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                    <span className="text-xs font-semibold text-navy-700 dark:text-white sm:text-sm">
+                      {selectedRequest.request_type || "-"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Leave Type */}
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                    Leave Type
+                  </label>
+                  <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                    <span className="text-xs font-semibold text-navy-700 dark:text-white sm:text-sm">
+                      {selectedRequest.request_type === "Permission"
+                        ? "-"
+                        : selectedRequest.leave_type || "-"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Start Date */}
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                    Start Date
+                  </label>
+                  <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                    <span className="text-xs text-navy-700 dark:text-white sm:text-sm">
+                      {selectedRequest.from_date
+                        ? new Date(
+                            selectedRequest.from_date
+                          ).toLocaleDateString()
+                        : "-"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                    End Date
+                  </label>
+                  <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                    <span className="text-xs text-navy-700 dark:text-white sm:text-sm">
+                      {selectedRequest.to_date
+                        ? new Date(selectedRequest.to_date).toLocaleDateString()
+                        : "-"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                    Duration
+                  </label>
+                  <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                    <span className="text-xs text-navy-700 dark:text-white sm:text-sm">
+                      {selectedRequest.request_type === "Permission"
+                        ? `2 Hours`
+                        : calculateDuration(
+                            selectedRequest.from_date,
+                            selectedRequest.to_date
+                          ) || "-"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                    Status
+                  </label>
+                  <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
                     <span
-                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold ${getStatusColor(
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold sm:gap-2 sm:px-3 ${getStatusColor(
                         selectedRequest.status
                       )}`}
                     >
@@ -633,146 +855,83 @@ export default function LeaveRequestsList() {
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Leave Details */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <FaCalendar className="text-navy-700 dark:text-white" />
-                  <h3 className="text-lg font-bold text-navy-700 dark:text-white">
-                    Leave Details
-                  </h3>
-                </div>
-
-                <div className="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-navy-700">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Leave Type
-                      </p>
-                      <p className="font-bold text-navy-700 dark:text-white">
-                        {selectedRequest.request_type === "Permission" ? "-": selectedRequest.leave_type || "-"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Request Type
-                      </p>
-                      <p className="font-bold text-navy-700 dark:text-white">
-                        {selectedRequest.request_type}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Start Date
-                      </p>
-                      <p className="font-bold text-navy-700 dark:text-white">
-                        {selectedRequest.from_date
-                          ? new Date(
-                              selectedRequest.from_date
-                            ).toLocaleDateString()
-                          : "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        End Date
-                      </p>
-                      <p className="font-bold text-navy-700 dark:text-white">
-                        {selectedRequest.to_date
-                          ? new Date(
-                              selectedRequest.to_date
-                            ).toLocaleDateString()
-                          : "-"}
+                {/* Request Reason */}
+                {selectedRequest.reason && (
+                  <div className="lg:col-span-2">
+                    <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                      Request Reason
+                    </label>
+                    <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                      <p className="break-words text-xs text-navy-700 dark:text-white sm:text-sm">
+                        {selectedRequest.reason}
                       </p>
                     </div>
                   </div>
+                )}
 
-                  {selectedRequest.reason && (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Request Reason
+                {/* Reject Reason - Only show if rejected */}
+                {selectedRequest.status &&
+                  String(selectedRequest.status).toLowerCase() === "rejected" &&
+                  selectedRequest.approval_reason && (
+                    <div className="lg:col-span-2">
+                      <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                        Reject Reason
+                      </label>
+                      <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                        <p className="break-words text-xs text-navy-700 dark:text-white sm:text-sm">
+                          {expandedReasons[selectedRequest.id]
+                            ? selectedRequest.approval_reason
+                            : selectedRequest.approval_reason?.substring(
+                                0,
+                                100
+                              )}
+                          {selectedRequest.approval_reason &&
+                            selectedRequest.approval_reason.length > 100 &&
+                            !expandedReasons[selectedRequest.id] &&
+                            "..."}
                         </p>
-                        <p className="font-bold text-navy-700 dark:text-white">
-                          {selectedRequest.reason}
-                        </p>
+                        {selectedRequest.approval_reason &&
+                          selectedRequest.approval_reason.length > 100 && (
+                            <button
+                              onClick={() =>
+                                setExpandedReasons({
+                                  ...expandedReasons,
+                                  [selectedRequest.id]:
+                                    !expandedReasons[selectedRequest.id],
+                                })
+                              }
+                              className="mt-2 text-xs font-bold text-brand-500 transition hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 sm:text-sm"
+                            >
+                              {expandedReasons[selectedRequest.id]
+                                ? "See Less"
+                                : "See More"}
+                            </button>
+                          )}
                       </div>
-                      {selectedRequest.status &&
-                        String(selectedRequest.status).toLowerCase() ===
-                          "rejected" && (
-                          <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Request Reject Reason
-                            </p>
-                            <div className="mt-2">
-                              <p className="break-words font-bold text-navy-700 dark:text-white">
-                                {expandedReasons[selectedRequest.id]
-                                  ? selectedRequest.approval_reason
-                                  : selectedRequest.approval_reason?.substring(
-                                      0,
-                                      100
-                                    )}
-                                {selectedRequest.approval_reason &&
-                                  selectedRequest.approval_reason.length >
-                                    100 &&
-                                  !expandedReasons[selectedRequest.id] &&
-                                  "..."}
-                              </p>
-                              {selectedRequest.approval_reason &&
-                                selectedRequest.approval_reason.length >
-                                  100 && (
-                                  <button
-                                    onClick={() =>
-                                      setExpandedReasons({
-                                        ...expandedReasons,
-                                        [selectedRequest.id]:
-                                          !expandedReasons[selectedRequest.id],
-                                      })
-                                    }
-                                    className="mt-2 text-sm font-bold text-brand-500 transition hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
-                                  >
-                                    {expandedReasons[selectedRequest.id]
-                                      ? "See Less"
-                                      : "See More"}
-                                  </button>
-                                )}
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                  )}
-                  {selectedRequest.remarks && (
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Remarks
-                      </p>
-                      <p className="font-bold text-navy-700 dark:text-white">
-                        {selectedRequest.remarks}
-                      </p>
                     </div>
                   )}
 
-                  {selectedRequest.remarks && (
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Remarks
-                      </p>
-                      <p className="font-bold text-navy-700 dark:text-white">
+                {/* Remarks */}
+                {selectedRequest.remarks && (
+                  <div className="lg:col-span-2">
+                    <label className="mb-2 block text-xs font-bold text-navy-700 dark:text-white sm:text-sm">
+                      Remarks
+                    </label>
+                    <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-navy-700 sm:px-4 sm:py-2.5">
+                      <p className="break-words text-xs text-navy-700 dark:text-white sm:text-sm">
                         {selectedRequest.remarks}
                       </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
               {selectedRequest.status &&
                 String(selectedRequest.status).toLowerCase() === "pending" &&
                 isAdmin && (
-                  <div className="flex gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
+                  <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:pt-6 lg:col-span-2">
                     <button
                       onClick={() =>
                         handleApprove(
@@ -780,7 +939,7 @@ export default function LeaveRequestsList() {
                         )
                       }
                       disabled={loading}
-                      className="flex-1 rounded-lg bg-green-500 px-4 py-3 font-bold text-white transition duration-200 hover:bg-green-600 disabled:opacity-50 dark:bg-green-600 dark:hover:bg-green-700"
+                      className="w-full rounded-lg bg-green-500 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-green-600 disabled:opacity-50 dark:bg-green-600 dark:hover:bg-green-700 sm:py-3 sm:text-sm"
                     >
                       <FaCheck className="mr-2 inline" /> Approve
                     </button>
@@ -790,7 +949,7 @@ export default function LeaveRequestsList() {
                         setShowRejectModal(true);
                       }}
                       disabled={loading}
-                      className="flex-1 rounded-lg bg-red-500 px-4 py-3 font-bold text-white transition duration-200 hover:bg-red-600 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
+                      className="w-full rounded-lg bg-red-500 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-red-600 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700 sm:py-3 sm:text-sm"
                     >
                       <FaTimes className="mr-2 inline" /> Reject
                     </button>
@@ -799,18 +958,18 @@ export default function LeaveRequestsList() {
 
               {(!selectedRequest.status ||
                 String(selectedRequest.status).toLowerCase() !== "pending") && (
-                <div className="flex gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
-                  <button
+                <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:pt-6 lg:col-span-2">
+                  {/* <button
                     onClick={() => setShowDetailsModal(false)}
-                    className="flex-1 rounded-lg border-2 border-gray-200 bg-white px-4 py-3 font-bold text-navy-700 transition duration-200 hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600"
+                    className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-navy-700 transition duration-200 hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600 sm:py-3 sm:text-sm"
                   >
                     Close
-                  </button>
+                  </button> */}
                   {isAdmin && (
                     <button
                       onClick={() => handleDelete(selectedRequest.leaveid)}
                       disabled={loading}
-                      className="rounded-lg bg-orange-500 px-4 py-3 font-bold text-white transition duration-200 hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
+                      className="rounded-lg bg-orange-500 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700 sm:py-3 sm:text-sm"
                     >
                       <FaTrash className="mr-2 inline" /> Delete
                     </button>
@@ -831,19 +990,19 @@ export default function LeaveRequestsList() {
           onClose={() => {
             setShowRequestModal(false);
             setEditRequestData(null);
-            loadLeaveRequests(); // Refresh the list after editing
+            loadLeaveRequests();
           }}
         />
       )}
 
       {/* Reject Reason Modal */}
       {showRejectModal && requestToReject && (
-        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-navy-800">
+        <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-2 backdrop-blur-sm sm:p-4">
+          <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl dark:bg-navy-800 sm:rounded-2xl">
             {/* Modal Header */}
-            <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+            <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700 sm:px-6 sm:py-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-navy-700 dark:text-white">
+                <h2 className="text-base font-bold text-navy-700 dark:text-white sm:text-lg md:text-xl">
                   Reject Leave Request
                 </h2>
                 <button
@@ -852,7 +1011,7 @@ export default function LeaveRequestsList() {
                     setRejectReason("");
                     setRequestToReject(null);
                   }}
-                  className="text-2xl font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="text-xl font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 sm:text-2xl"
                 >
                   ✕
                 </button>
@@ -860,12 +1019,12 @@ export default function LeaveRequestsList() {
             </div>
 
             {/* Modal Content */}
-            <div className="space-y-4 p-6">
+            <div className="space-y-3 p-4 sm:space-y-4 sm:p-6">
               <div>
-                <p className="mb-2 text-sm font-semibold text-navy-700 dark:text-white">
+                <p className="mb-2 text-xs font-semibold text-navy-700 dark:text-white sm:text-sm">
                   Employee: {requestToReject.employee_name}
                 </p>
-                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                <p className="mb-3 text-xs text-gray-600 dark:text-gray-400 sm:mb-4 sm:text-sm">
                   Please provide a reason for rejecting this leave request.
                 </p>
               </div>
@@ -875,19 +1034,19 @@ export default function LeaveRequestsList() {
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Enter reason for rejection..."
                 rows="4"
-                className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-navy-700 placeholder-gray-400 transition focus:border-red-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white"
+                className="w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs text-navy-700 placeholder-gray-400 transition focus:border-red-500 focus:outline-none dark:border-gray-700 dark:bg-navy-700 dark:text-white sm:px-4 sm:py-2.5 sm:text-sm"
               />
             </div>
 
             {/* Modal Footer */}
-            <div className="flex gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+            <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700 sm:flex-row sm:px-6 sm:py-4">
               <button
                 onClick={() => {
                   setShowRejectModal(false);
                   setRejectReason("");
                   setRequestToReject(null);
                 }}
-                className="flex-1 rounded-lg border-2 border-gray-200 bg-white px-4 py-2 font-bold text-navy-700 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600"
+                className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2 text-xs font-bold text-navy-700 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600 sm:text-sm"
               >
                 Cancel
               </button>
@@ -903,7 +1062,7 @@ export default function LeaveRequestsList() {
                   }
                 }}
                 disabled={loading || !rejectReason.trim()}
-                className="flex-1 rounded-lg bg-red-500 px-4 py-2 font-bold text-white transition hover:bg-red-600 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
+                className="w-full rounded-lg bg-red-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-600 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700 sm:text-sm"
               >
                 Reject
               </button>

@@ -29,27 +29,45 @@ export default function SignIn() {
         if (response?.access || response?.access_token) {
           const token = response.access || response.access_token;
           // Remove 'Bearer ' prefix if already present to store clean token
-          const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+          const cleanToken = token.startsWith("Bearer ")
+            ? token.substring(7)
+            : token;
           // Set auth state from API response
-          login(response.user_id, cleanToken,response.user_name, response.is_super_admin);
-          
+          login(
+            response.user_id,
+            cleanToken,
+            response.user_name,
+            response.is_super_admin
+          );
+
           // Determine user role and store in localStorage
           let userRole = "User"; // Default role
-          if (response.user?.is_super_admin === "true" || response.user?.is_super_admin === true) {
+          if (
+            response.user?.is_super_admin === "true" ||
+            response.user?.is_super_admin === true
+          ) {
             userRole = "Admin";
-          } else if (response.user?.role === "Admin" || response.user?.role?.role_name === "Admin") {
+          } else if (
+            response.user?.role === "Admin" ||
+            response.user?.role?.role_name === "Admin"
+          ) {
             userRole = "Admin";
           } else if (response.user?.role?.role_name) {
             userRole = response.user.role.role_name;
           } else if (response.user?.role) {
             userRole = response.user.role;
           }
-          
 
           // Role-based redirect
-          if (response.user?.is_super_admin === "true" || response.user?.is_super_admin === true) {
+          if (
+            response.user?.is_super_admin === "true" ||
+            response.user?.is_super_admin === true
+          ) {
             navigate("/admin/Dashboard");
-          } else if (response.user?.role === "Admin" || response.user?.role?.role_name === "Admin") {
+          } else if (
+            response.user?.role === "Admin" ||
+            response.user?.role?.role_name === "Admin"
+          ) {
             navigate("/admin/Dashboard");
           } else {
             navigate("/admin/Dashboard");
@@ -61,7 +79,14 @@ export default function SignIn() {
         setLoading(false);
       },
       (error) => {
-        const errorMessage = error?.message || error?.detail || "Login failed";
+        // Custom error message for invalid credentials
+        let errorMessage = error?.message || error?.detail || "Login failed";
+        if (
+          errorMessage.toLowerCase().includes("email is incorrect") ||
+          errorMessage.toLowerCase().includes("invalid credentials")
+        ) {
+          errorMessage = "Email or password is incorrect";
+        }
         setError(errorMessage);
         showError(errorMessage);
         setLoading(false);
@@ -73,7 +98,7 @@ export default function SignIn() {
     <div className=" mb-16 flex h-full w-full items-center justify-center px-2 md:mx-0 md:px-0 lg:mb-10 lg:items-center lg:justify-start">
       {/* Sign in section */}
       <div className="mt-[10vh] w-full max-w-full flex-col items-center md:pl-4 lg:pl-0 xl:max-w-[420px]">
-        <h4 className="mb-2.5 ml-15 text-3xl font-bold text-navy-700 dark:text-white">
+        <h4 className="ml-15 mb-2.5 text-3xl font-bold text-navy-700 dark:text-white">
           Log In
         </h4>
         <p className="mb-9 text-base text-gray-600">
@@ -85,7 +110,6 @@ export default function SignIn() {
             {error}
           </div>
         )}
-
 
         <form onSubmit={handleSubmit} className="w-full">
           {/* Email */}
@@ -127,7 +151,6 @@ export default function SignIn() {
                 Keep me logged In
               </p>
             </div>
-            
           </div>
 
           <button

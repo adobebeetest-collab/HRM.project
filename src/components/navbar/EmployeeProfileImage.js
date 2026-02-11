@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import avatar from "assets/img/avatars/avatar4.png";
+import avatarMale from "assets/img/avatars/male_profile.png";
+import avatarFemale from "assets/img/avatars/female_profile.png";
 import employeeAPI from "services/employeeAPI";
 
 const API_BASE = "https://insoluble-unseparately-delena.ngrok-free.dev";
 
 export default function EmployeeProfileImage({ employeeId, ...props }) {
-  const [profileUrl, setProfileUrl] = useState(avatar);
+  const [profileUrl, setProfileUrl] = useState(avatarMale);
 
   useEffect(() => {
     if (!employeeId) return;
@@ -23,11 +24,17 @@ export default function EmployeeProfileImage({ employeeId, ...props }) {
           } else {
             setProfileUrl(`${API_BASE}${emp.profile_picture}`);
           }
+        } else if (emp && emp.gender) {
+          if (emp.gender.toLowerCase() === "female") {
+            setProfileUrl(avatarFemale);
+          } else {
+            setProfileUrl(avatarMale);
+          }
         } else {
-          setProfileUrl(avatar);
+          setProfileUrl(avatarMale);
         }
       },
-      () => setProfileUrl(avatar)
+      () => setProfileUrl(avatarMale)
     );
   }, [employeeId]);
 

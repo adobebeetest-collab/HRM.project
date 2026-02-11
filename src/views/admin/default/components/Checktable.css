@@ -1,0 +1,14 @@
+/* Rounded bars on both ends */
+.apexcharts-bar-area {
+  border-radius: 10px !important;
+}
+
+.apexcharts-bar-series path {
+  rx: 8 !important;
+  ry: 8 !important;
+}
+
+/* Optional: Add smooth transitions */
+.apexcharts-bar-area {
+  transition: all 0.3s ease;
+}

@@ -1,6 +1,11 @@
 import {
-  apiPost,apiGet,apiUpdate,apiDelete,apiPutFormData,
-  apiPatch,} from "./apiHelper";
+  apiPost,
+  apiGet,
+  apiUpdate,
+  apiDelete,
+  apiPutFormData,
+  apiPatch,
+} from "./apiHelper";
 
 /**
  * Leave Management API endpoints
@@ -13,10 +18,23 @@ export const leaveAPI = {
    * @param {function} onError - Error callback
    */
   applyLeave: (leaveData, onSuccess, onError) =>
-    apiPost("leave/leave-post/", leaveData, onSuccess, onError),
+    apiPost(
+      "leave/leave-post/",
+      leaveData,
+      (response) => {
+        localStorage.setItem("isCompleted", "true");
+        if (onSuccess) onSuccess(response);
+      },
+      onError
+    ),
 
   updateLeave: (leaveId, actionData, onSuccess, onError) =>
-    apiPutFormData(`/leave/update-status/${leaveId}/`,actionData,onSuccess,onError),
+    apiPutFormData(
+      `/leave/update-status/${leaveId}/`,
+      actionData,
+      onSuccess,
+      onError
+    ),
 
   /**
    * Get all leave requests
@@ -94,7 +112,12 @@ export const leaveAPI = {
    * @param {function} onError - Error callback
    */
   updateLeaveAction: (leaveId, formData, onSuccess, onError) =>
-    apiPutFormData(`/leave/update-leave/${leaveId}/`, formData, onSuccess, onError),
+    apiPutFormData(
+      `/leave/update-leave/${leaveId}/`,
+      formData,
+      onSuccess,
+      onError
+    ),
 };
 
 export default leaveAPI;

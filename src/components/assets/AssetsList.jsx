@@ -18,6 +18,8 @@ import {
   FaNetworkWired,
 } from "react-icons/fa";
 import Pagination from "components/common/Pagination";
+import maleProfile from "assets/img/avatars/male_profile.png";
+import femaleProfile from "assets/img/avatars/female_profile.png";
 import Swal from "sweetalert2";
 import assetAPI from "services/assetAPI";
 import employeeAPI from "services/employeeAPI";
@@ -56,7 +58,8 @@ export default function AssetsList() {
     assigned_to: "",
     assigned_date: "",
   });
-  const itemsPerPage = 2;
+  const [assetFormErrors, setAssetFormErrors] = useState({});
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadAssets();
@@ -367,16 +370,18 @@ export default function AssetsList() {
     }));
   };
   const handleSaveAsset = () => {
-    if (!newAssetData.asset_type) {
-      showError("Asset type is required");
-      return;
-    }
-    if (!String(newAssetData.brand).trim()) {
-      showError("Brand is required");
-      return;
-    }
-    if (!newAssetData.purchase_date) {
-      showError("Purchase date is required");
+    const errors = {};
+    if (!newAssetData.asset_type) errors.asset_type = "Asset type is required";
+    if (!String(newAssetData.brand).trim()) errors.brand = "Brand is required";
+    if (!newAssetData.model) errors.model = "Model is required";
+    if (!newAssetData.variant) errors.variant = "Variant is required";
+    if (!newAssetData.purchase_date)
+      errors.purchase_date = "Purchase date is required";
+    if (!newAssetData.serial_number)
+      errors.serial_number = "Serial number is required";
+    setAssetFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      showError("Please fill all required fields");
       return;
     }
 
@@ -417,14 +422,24 @@ export default function AssetsList() {
         (error) => {
           setLoading(false);
           let errorMessage = "Failed to update asset";
-          if (error?.response?.data?.message) {
+          let serialNumberError = undefined;
+          if (error?.response?.data?.serial_number) {
+            serialNumberError =
+              error.response.data.serial_number[0] ||
+              "Serial number already exists";
+            errorMessage = serialNumberError;
+          } else if (error?.response?.data?.message) {
             errorMessage = error.response.data.message;
           } else if (error?.response?.data?.detail) {
             errorMessage = error.response.data.detail;
-          } else if (error?.response?.data?.serial_number) {
-            errorMessage = error.response.data.serial_number[0] || errorMessage;
           } else if (error?.message) {
             errorMessage = error.message;
+          }
+          if (serialNumberError) {
+            setAssetFormErrors((prev) => ({
+              ...prev,
+              serial_number: serialNumberError,
+            }));
           }
           showError(errorMessage);
         }
@@ -442,14 +457,24 @@ export default function AssetsList() {
         (error) => {
           setLoading(false);
           let errorMessage = "Failed to add asset";
-          if (error?.response?.data?.message) {
+          let serialNumberError = undefined;
+          if (error?.response?.data?.serial_number) {
+            serialNumberError =
+              error.response.data.serial_number[0] ||
+              "Serial number already exists";
+            errorMessage = serialNumberError;
+          } else if (error?.response?.data?.message) {
             errorMessage = error.response.data.message;
           } else if (error?.response?.data?.detail) {
             errorMessage = error.response.data.detail;
-          } else if (error?.response?.data?.serial_number) {
-            errorMessage = error.response.data.serial_number[0] || errorMessage;
           } else if (error?.message) {
             errorMessage = error.message;
+          }
+          if (serialNumberError) {
+            setAssetFormErrors((prev) => ({
+              ...prev,
+              serial_number: serialNumberError,
+            }));
           }
           showError(errorMessage);
         }
@@ -476,10 +501,10 @@ export default function AssetsList() {
             className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
           />
         </div>
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex items-center justify-center">
           <button
             onClick={handleAddAsset}
-            className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-3 font-bold text-white transition hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+            className="sm-text-[14px] flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-3 text-[12px] font-bold text-white transition hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 md:text-[16px] lg:text-[18px]"
           >
             <FaPlus size={18} />
             <span>Add Asset</span>
@@ -504,25 +529,28 @@ export default function AssetsList() {
       ) : (
         <div className="overflow-hidden rounded-xl bg-white shadow-lg dark:bg-navy-800">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[1000px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-navy-700">
-                  <th className="px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6">
+                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
+                    S.No
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
                     Category
                   </th>
-                  <th className="px-2 py-2 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6">
+                  <th className="px-2 py-2 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
                     Details
                   </th>
-                  <th className="hidden px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6 lg:table-cell">
+                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
                     Serial Number
                   </th>
-                  <th className="hidden px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6 xl:table-cell">
+                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
                     Assign Name
                   </th>
-                  <th className="hidden px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6 xl:table-cell">
+                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
                     Location
                   </th>
-                  <th className="px-4 py-4 text-center text-sm font-bold text-navy-700 dark:text-white sm:px-6">
+                  <th className="px-3 py-3 text-center text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
                     Actions
                   </th>
                 </tr>
@@ -533,16 +561,19 @@ export default function AssetsList() {
                     key={asset.id || index}
                     className="border-b border-gray-200 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-navy-700"
                   >
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 dark:text-white sm:px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
+                    <td className="px-3 py-3 text-xs font-bold text-navy-700 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </td>
+                    <td className="px-3 py-3 text-xs font-medium text-gray-900 dark:text-white sm:px-4 sm:py-4 sm:text-sm">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 sm:h-10 sm:w-10">
                           {asset?.picture &&
                           typeof asset.picture === "string" &&
                           asset.picture.startsWith("http") ? (
                             <img
                               src={asset.picture}
                               alt={asset.picture || "Asset"}
-                              className="h-10 w-10 rounded-lg object-cover"
+                              className="h-8 w-8 rounded-lg object-cover sm:h-10 sm:w-10"
                               onError={(e) => {
                                 e.target.onerror = null;
                                 e.target.style.display = "none";
@@ -551,37 +582,41 @@ export default function AssetsList() {
                           ) : (
                             React.createElement(
                               getAssetIcon(asset?.asset_type_name),
-                              { size: 20 }
+                              { size: 16, className: "sm:w-5 sm:h-5" }
                             )
                           )}
                         </div>
-                        <span className="font-medium">
+                        <span className="whitespace-nowrap font-medium">
                           {asset?.asset_type_name || "N/A"}
                         </span>
                       </div>
                     </td>
-                    <td className="flex flex-col px-4 py-4 text-sm text-gray-900 dark:text-gray-900 sm:px-6">
-                      <p className="dark:text-white">
-                        <strong>Brand : </strong>
-                        {asset.brand_name}
-                      </p>
-                      <p className="dark:text-white">
-                        <strong>Model : </strong>
-                        {asset.model_name}
-                      </p>
-                      <p className="dark:text-white">
-                        <strong>Varient : </strong>
-                        {asset.variant_name}
-                      </p>
+                    <td className="px-2 py-3 text-xs text-gray-900 dark:text-gray-900 sm:px-4 sm:py-4 sm:text-sm">
+                      <div className="space-y-0.5">
+                        <p className="dark:text-white">
+                          <strong>Brand : </strong>
+                          {asset.brand_name}
+                        </p>
+                        <p className="dark:text-white">
+                          <strong>Model : </strong>
+                          {asset.model_name}
+                        </p>
+                        <p className="dark:text-white">
+                          <strong>Varient : </strong>
+                          {asset.variant_name}
+                        </p>
+                      </div>
                     </td>
-                    <td className="hidden px-4 py-4 text-sm text-gray-700 dark:text-gray-300 sm:px-6 md:table-cell">
-                      {asset.serial_number || "N/A"}
+                    <td className="px-3 py-3 text-xs text-gray-700 dark:text-gray-300 sm:px-4 sm:py-4 sm:text-sm">
+                      <span className="whitespace-nowrap">
+                        {asset.serial_number || "N/A"}
+                      </span>
                     </td>
-                    <td className="hidden px-4 py-4 font-mono text-sm text-gray-700 dark:text-gray-300 sm:px-6 lg:table-cell">
+                    <td className="px-3 py-3 font-mono text-xs text-gray-700 dark:text-gray-300 sm:px-4 sm:py-4 sm:text-sm">
                       {(() => {
                         if (!asset.assigned_to) {
                           return (
-                            <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800 dark:bg-red-900 dark:text-red-200">
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:bg-red-900 dark:text-red-200 sm:px-3 sm:py-1 sm:text-xs">
                               Not Assigned
                             </span>
                           );
@@ -591,38 +626,54 @@ export default function AssetsList() {
                         );
                         if (!emp || emp.is_active === false) {
                           return (
-                            <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800 dark:bg-red-900 dark:text-red-200">
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:bg-red-900 dark:text-red-200 sm:px-3 sm:py-1 sm:text-xs">
                               Not Assigned
                             </span>
                           );
                         }
-                        const empName =
-                          emp.name ||
-                          (emp.first_name && emp.last_name
-                            ? `${emp.first_name} ${emp.last_name}`
-                            : emp.first_name || "Unknown");
-                        return <span>{empName}</span>;
+                        // Gender-based profile image
+                        let profileImg = maleProfile;
+                        if (
+                          emp.gender &&
+                          emp.gender.toLowerCase() === "female"
+                        ) {
+                          profileImg = femaleProfile;
+                        }
+                        const empName = emp.user_name;
+                        return (
+                          <span className="flex items-center gap-1.5 whitespace-nowrap sm:gap-2">
+                            <img
+                              src={profileImg}
+                              alt={emp.gender === "female" ? "Female" : "Male"}
+                              className="inline-block h-5 w-5 flex-shrink-0 rounded-full border border-gray-300 object-cover dark:border-gray-600 sm:h-6 sm:w-6"
+                              style={{ background: "#fff" }}
+                            />
+                            <span className="truncate">{empName}</span>
+                          </span>
+                        );
                       })()}
                     </td>
-                    <td className="hidden px-4 py-4 text-sm text-gray-700 dark:text-gray-300 sm:px-6 xl:table-cell">
-                      {asset.floor_location || "-"}
+                    <td className="px-3 py-3 text-xs text-gray-700 dark:text-gray-300 sm:px-4 sm:py-4 sm:text-sm">
+                      <span className="whitespace-nowrap">
+                        {asset.floor_location || "-"}
+                      </span>
                     </td>
-                    <td className="px-4 py-4 text-center sm:px-6">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-3 py-3 text-center sm:px-4 sm:py-4">
+                      <div className="flex items-center justify-center gap-1 sm:gap-2">
                         <button
                           onClick={() => handleEditAsset(asset)}
-                          className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
+                          className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900 sm:p-2"
                           title="Edit"
                         >
-                          <MdEdit size={20} />
+                          <MdEdit size={18} className="sm:h-5 sm:w-5" />
                         </button>
 
                         <button
                           onClick={() => handleDeleteAsset(asset.assetid)}
-                          className="rounded-lg p-2 text-red-600 transition hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
+                          className="rounded-lg p-1.5 text-red-600 transition hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900 sm:p-2"
                           title="Delete"
                         >
-                          <FaTrash size={16} />
+                          <FaTrash size={14} className="sm:h-4 sm:w-4" />
                         </button>
                       </div>
                     </td>
@@ -730,12 +781,34 @@ export default function AssetsList() {
                               (e.id || e.employee_id) ==
                               selectedAsset.assigned_to
                           );
-                          return emp
-                            ? emp.name ||
-                                (emp.first_name && emp.last_name
-                                  ? emp.first_name + " " + emp.last_name
-                                  : emp.first_name || "Unknown")
-                            : "Not Found";
+                          if (!emp) return "Not Found";
+                          let profileImg = maleProfile;
+                          if (
+                            emp.gender &&
+                            emp.gender.toLowerCase() === "female"
+                          ) {
+                            profileImg = femaleProfile;
+                          }
+                          const empName =
+                            emp.name ||
+                            (emp.first_name && emp.last_name
+                              ? `${emp.first_name} ${emp.last_name}`
+                              : emp.first_name || "Unknown");
+                          return (
+                            <span className="flex items-center gap-2">
+                              <img
+                                src={profileImg}
+                                alt={
+                                  emp.gender === "female"
+                                    ? femaleProfile
+                                    : maleProfile
+                                }
+                                className="inline-block h-6 w-6 rounded-full border border-gray-300 object-cover dark:border-gray-600"
+                                style={{ background: "#fff" }}
+                              />
+                              {empName}
+                            </span>
+                          );
                         })()
                       : "-"}
                   </p>
@@ -854,13 +927,21 @@ export default function AssetsList() {
                   </label>
                   <select
                     value={newAssetData.asset_type}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         asset_type: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        asset_type: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.asset_type
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   >
                     <option value="">-- Select Type --</option>
                     {assetTypes.map((type) => (
@@ -869,6 +950,11 @@ export default function AssetsList() {
                       </option>
                     ))}
                   </select>
+                  {assetFormErrors.asset_type && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {assetFormErrors.asset_type}
+                    </p>
+                  )}
                 </div>
 
                 {/* Brand */}
@@ -878,13 +964,21 @@ export default function AssetsList() {
                   </label>
                   <select
                     value={newAssetData.brand}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         brand: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        brand: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.brand
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   >
                     <option value="">-- Select Brand --</option>
                     {brands.map((brand) => (
@@ -893,22 +987,35 @@ export default function AssetsList() {
                       </option>
                     ))}
                   </select>
+                  {assetFormErrors.brand && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {assetFormErrors.brand}
+                    </p>
+                  )}
                 </div>
 
                 {/* Model */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Model
+                    Model <span className="font-bold text-red-600">*</span>
                   </label>
                   <select
                     value={newAssetData.model}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         model: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        model: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.model
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   >
                     <option value="">-- Select Model --</option>
                     {models
@@ -919,22 +1026,35 @@ export default function AssetsList() {
                         </option>
                       ))}
                   </select>
+                  {assetFormErrors.model && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {assetFormErrors.model}
+                    </p>
+                  )}
                 </div>
 
                 {/* Variant */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Variant
+                    Variant <span className="font-bold text-red-600">*</span>
                   </label>
                   <select
                     value={newAssetData.variant}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         variant: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        variant: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.variant
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   >
                     <option value="">-- Select Variant --</option>
                     {variants.map((variant) => (
@@ -943,6 +1063,11 @@ export default function AssetsList() {
                       </option>
                     ))}
                   </select>
+                  {assetFormErrors.variant && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {assetFormErrors.variant}
+                    </p>
+                  )}
                 </div>
 
                 {/* Purchase Date */}
@@ -954,33 +1079,60 @@ export default function AssetsList() {
                   <input
                     type="date"
                     value={newAssetData.purchase_date}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         purchase_date: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        purchase_date: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.purchase_date
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   />
+                  {assetFormErrors.purchase_date && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {assetFormErrors.purchase_date}
+                    </p>
+                  )}
                 </div>
 
                 {/* Serial Number */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Serial Number
+                    Serial Number{" "}
+                    <span className="font-bold text-red-600">*</span>
                   </label>
                   <input
                     type="text"
                     value={newAssetData.serial_number}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         serial_number: e.target.value,
-                      })
-                    }
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        serial_number: undefined,
+                      }));
+                    }}
                     placeholder="Enter serial number"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 placeholder-gray-400 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.serial_number
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 placeholder-gray-400 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   />
+                  {assetFormErrors.serial_number && (
+                    <div className="pt-1 text-xs text-red-600">
+                      {assetFormErrors.serial_number}
+                    </div>
+                  )}
                 </div>
 
                 {/* Floor Location */}
@@ -990,19 +1142,32 @@ export default function AssetsList() {
                   </label>
                   <select
                     value={newAssetData.floor_location}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         floor_location: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        floor_location: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.floor_location
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   >
                     <option value="">-- Select Floor --</option>
                     <option value="1st Floor">1st Floor</option>
                     <option value="2nd Floor">2nd Floor</option>
                     <option value="3rd Floor">3rd Floor</option>
                   </select>
+                  {assetFormErrors.floor_location && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {assetFormErrors.floor_location}
+                    </p>
+                  )}
                 </div>
 
                 {/* Assigned Employee (Optional) */}
@@ -1012,21 +1177,29 @@ export default function AssetsList() {
                   </label>
                   <select
                     value={newAssetData.assigned_to}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         assigned_to: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        assigned_to: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.assigned_to
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   >
                     <option value="">-- Choose Employee --</option>
                     {employees.map((emp) => (
                       <option
-                        key={emp.id || emp.employee_id}
-                        value={emp.id || emp.employee_id}
+                        key={emp.id || emp.user_name}
+                        value={emp.id || emp.user_name}
                       >
-                        {emp.name ||
+                        {emp.user_name ||
                           (emp.first_name && emp.last_name
                             ? `${emp.first_name} ${emp.last_name}`
                             : emp.first_name)}
@@ -1041,12 +1214,7 @@ export default function AssetsList() {
                           (e) =>
                             (e.id || e.employee_id) == newAssetData.assigned_to
                         );
-                        return emp
-                          ? emp.name ||
-                              (emp.first_name && emp.last_name
-                                ? `${emp.first_name} ${emp.last_name}`
-                                : emp.first_name)
-                          : "Unknown";
+                        return emp ? emp.user_name : "Unknown";
                       })()}
                     </p>
                   )}
@@ -1060,20 +1228,33 @@ export default function AssetsList() {
                   <input
                     type="date"
                     value={newAssetData.assigned_date}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewAssetData({
                         ...newAssetData,
                         assigned_date: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                      });
+                      setAssetFormErrors((prev) => ({
+                        ...prev,
+                        assigned_date: undefined,
+                      }));
+                    }}
+                    className={`w-full rounded-lg border ${
+                      assetFormErrors.assigned_date
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } bg-white px-4 py-2 text-gray-700 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white`}
                   />
+                  {assetFormErrors.assigned_date && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {assetFormErrors.assigned_date}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-navy-700">
+            <div className="flex gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 text-[13px] dark:border-gray-700 dark:bg-navy-700">
               <button
                 onClick={() => {
                   setShowAddModal(false);

@@ -309,7 +309,6 @@ export default function Calendar() {
     calendarAPI.createEvent(
       eventData,
       (response) => {
-        // setEventForm({ date: "", name: "", time: "", category: "work", description: "" });
         setShowHolidayModal(false);
         loadEvents();
 
@@ -473,21 +472,30 @@ export default function Calendar() {
     }
   };
 
+  // Pagination for holidays table
+  const holidaysPerPage = 5;
+  const [holidayPage, setHolidayPage] = useState({}); // { '2026-01': 1, ... }
+
+  const handleHolidayPageChange = (monthKey, newPage) => {
+    setHolidayPage((prev) => ({ ...prev, [monthKey]: newPage }));
+  };
+
   return (
     <div className="w-full">
       {/* Calendar Container */}
       <div className="overflow-hidden rounded-lg bg-white shadow-lg dark:bg-navy-800">
-        {/* Calendar Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-navy-700 dark:text-white">
+        {/* Calendar Header - Responsive */}
+        <div className="flex flex-col gap-4 border-b border-gray-200 p-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <h2 className="text-xl font-bold text-navy-700 dark:text-white sm:text-2xl">
             {monthName}
           </h2>
-          {/* Navigation Buttons */}
-          <div className="flex items-center gap-2">
+          {/* Navigation Buttons - Responsive */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* View Mode Toggle */}
             <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-navy-700">
               <button
                 onClick={() => setViewMode("month")}
-                className={`rounded px-3 py-1 text-sm font-semibold transition ${
+                className={`rounded px-2 py-1 text-xs font-semibold transition sm:px-3 sm:text-sm ${
                   viewMode === "month"
                     ? "bg-blue-500 text-white"
                     : "text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-navy-600"
@@ -497,7 +505,7 @@ export default function Calendar() {
               </button>
               <button
                 onClick={() => setViewMode("week")}
-                className={`rounded px-3 py-1 text-sm font-semibold transition ${
+                className={`rounded px-2 py-1 text-xs font-semibold transition sm:px-3 sm:text-sm ${
                   viewMode === "week"
                     ? "bg-blue-500 text-white"
                     : "text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-navy-600"
@@ -511,14 +519,14 @@ export default function Calendar() {
               <>
                 <button
                   onClick={handlePrevMonth}
-                  className="rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-navy-700"
+                  className="rounded-lg p-1 transition hover:bg-gray-100 dark:hover:bg-navy-700"
                   title="Previous month"
                 >
                   <FaChevronLeft className="text-gray-600 dark:text-gray-400" />
                 </button>
                 <button
                   onClick={handleToday}
-                  className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                  className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 sm:px-4 sm:text-sm"
                 >
                   Today
                 </button>
@@ -541,7 +549,7 @@ export default function Calendar() {
                 </button>
                 <button
                   onClick={handleToday}
-                  className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                  className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 sm:px-4 sm:text-sm"
                 >
                   Today
                 </button>
@@ -557,7 +565,7 @@ export default function Calendar() {
             {isSuperAdmin && (
               <button
                 onClick={handleAddHolidayButton}
-                className="ml-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
+                className="rounded-lg bg-green-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 sm:ml-2 sm:px-4 sm:text-sm"
               >
                 + Holiday
               </button>
@@ -565,22 +573,23 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Month View */}
+        {/* Month View - Responsive */}
         {viewMode === "month" && (
           <>
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700">
-              {/* Weekday Headers */}
+              {/* Weekday Headers - Responsive */}
               {weekdays.map((day) => (
                 <div
                   key={day}
-                  className="bg-gray-50 p-4 text-center text-sm font-semibold text-gray-600 dark:bg-navy-700 dark:text-gray-400"
+                  className="bg-gray-50 p-2 text-center text-xs font-semibold text-gray-600 dark:bg-navy-700 dark:text-gray-400 sm:p-4 sm:text-sm"
                 >
-                  {day}
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day.slice(0, 1)}</span>
                 </div>
               ))}
 
-              {/* Calendar Days */}
+              {/* Calendar Days - Responsive */}
               {calendarDays.map((dayObj, index) => {
                 const holiday = isHolidayDate(dayObj.date);
                 const event = isEventDate(dayObj.date);
@@ -590,7 +599,7 @@ export default function Calendar() {
                     key={index}
                     onClick={() => handleCalendarDayClick(dayObj)}
                     className={`
-                      relative min-h-24 cursor-pointer p-2 transition-all
+                      relative min-h-16 cursor-pointer p-1 transition-all sm:min-h-20 sm:p-2 lg:min-h-24
                       ${
                         dayObj.isCurrentMonth
                           ? "bg-white hover:bg-gray-50 dark:bg-navy-800 dark:hover:bg-navy-700"
@@ -611,7 +620,7 @@ export default function Calendar() {
                   >
                     <div
                       className={`
-                        mb-1 text-right font-semibold
+                        mb-1 text-xs font-semibold sm:text-right sm:text-sm
                         ${
                           !dayObj.isCurrentMonth
                             ? "text-gray-400 dark:text-gray-600"
@@ -629,33 +638,33 @@ export default function Calendar() {
                         }
                       `}
                     >
-                      {/* If today, show big blue number and 'Today' label */}
+                      {/* Mobile: Today gets special treatment too */}
                       {isTodayCell ? (
                         <div className="flex flex-col items-center">
-                          <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          <span className="text-lg font-bold text-blue-600 dark:text-blue-400 sm:text-xl lg:text-2xl">
                             {dayObj.day}
                           </span>
-                          <span className="mt-2 w-full border-t border-blue-200"></span>
-                          <span className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          <span className="mt-0.5 w-full border-t border-blue-200 sm:mt-1"></span>
+                          <span className="mt-0.5 text-[9px] font-semibold text-blue-600 dark:text-blue-400 sm:mt-1 sm:text-xs">
                             Today
                           </span>
                         </div>
                       ) : (
-                        dayObj.day
+                        <div className="text-right">{dayObj.day}</div>
                       )}
                     </div>
 
-                    {/* Holiday Badge */}
+                    {/* Holiday Badge - Responsive */}
                     {holiday && (
-                      <div className="mt-1 flex items-center gap-1 truncate rounded bg-blue-500 px-2 py-1 text-xs text-white">
-                        <FaCalendarAlt size={10} />
-                        {holiday.holiday_name}
+                      <div className="mt-0.5 flex items-center gap-0.5 truncate rounded bg-blue-500 px-1 py-0.5 text-[9px] text-white sm:mt-1 sm:gap-1 sm:px-2 sm:py-1 sm:text-xs">
+                        <FaCalendarAlt className="hidden sm:inline" size={10} />
+                        <span className="truncate">{holiday.holiday_name}</span>
                       </div>
                     )}
 
-                    {/* Event Badge */}
+                    {/* Event Badge - Responsive */}
                     {event && !holiday && (
-                      <div className="mt-1 truncate rounded bg-blue-500 px-2 py-1 text-xs text-white">
+                      <div className="mt-0.5 truncate rounded bg-blue-500 px-1 py-0.5 text-[9px] text-white sm:mt-1 sm:px-2 sm:py-1 sm:text-xs">
                         {event.name}
                       </div>
                     )}
@@ -666,7 +675,7 @@ export default function Calendar() {
           </>
         )}
 
-        {/* Week View */}
+        {/* Week View - Responsive */}
         {viewMode === "week" && (
           <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700">
             {weekDays.map((day, index) => {
@@ -675,21 +684,21 @@ export default function Calendar() {
               // mimic dayObj for handleCalendarDayClick
               const dayObj = {
                 day: day.getDate(),
-                isCurrentMonth: true, // allow click for all days in week view
+                isCurrentMonth: true,
                 date: day,
               };
               return (
                 <div
                   key={index}
                   onClick={() => handleCalendarDayClick(dayObj)}
-                  className="cursor-pointer bg-white p-4 dark:bg-navy-800"
+                  className="cursor-pointer bg-white p-2 dark:bg-navy-800 sm:p-4"
                 >
-                  <div className="mb-3 text-center">
-                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                  <div className="mb-2 text-center sm:mb-3">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 sm:text-sm">
                       {day.toLocaleDateString("en-US", { weekday: "short" })}
                     </p>
                     <p
-                      className={`text-lg font-bold ${
+                      className={`text-base font-bold sm:text-lg ${
                         isToday(day)
                           ? "text-blue-600 dark:text-blue-400"
                           : "text-gray-900 dark:text-white"
@@ -700,21 +709,21 @@ export default function Calendar() {
                   </div>
 
                   {holiday && (
-                    <div className="flex items-center justify-center gap-1 rounded bg-red-100 p-2 text-center text-xs font-semibold text-red-800 dark:bg-red-900 dark:text-red-200">
-                      <FaCalendarAlt size={12} />
-                      {holiday.holiday_name}
+                    <div className="flex items-center justify-center gap-1 rounded bg-red-100 p-1.5 text-center text-[10px] font-semibold text-red-800 dark:bg-red-900 dark:text-red-200 sm:gap-1 sm:p-2 sm:text-xs">
+                      <FaCalendarAlt className="hidden sm:inline" size={12} />
+                      <span className="truncate">{holiday.holiday_name}</span>
                     </div>
                   )}
 
                   {event && !holiday && (
-                    <div className="rounded bg-blue-100 p-2 text-center text-xs font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                      {event.name}
+                    <div className="rounded bg-blue-100 p-1.5 text-center text-[10px] font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-200 sm:p-2 sm:text-xs">
+                      <span className="truncate">{event.name}</span>
                     </div>
                   )}
 
                   {isToday(day) && (
-                    <div className="mt-2 border-t border-blue-300 pt-2 dark:border-blue-700">
-                      <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                    <div className="mt-1.5 border-t border-blue-300 pt-1.5 dark:border-blue-700 sm:mt-2 sm:pt-2">
+                      <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 sm:text-xs">
                         Today
                       </p>
                     </div>
@@ -726,123 +735,201 @@ export default function Calendar() {
         )}
       </div>
 
-      {/* Holidays by Month Count */}
+      {/* Holidays by Month - Full Width on Mobile */}
       {holidays.length > 0 && (
-        <div className="mt-6 rounded-lg bg-white p-6 shadow-lg dark:bg-navy-800">
-          {(() => {
-            // Group holidays by month
-            const monthMap = {};
-            holidays.forEach((h) => {
-              const [year, month] = h.holiday_date.split("-");
-              const key = `${year}-${month}`;
-              if (!monthMap[key]) monthMap[key] = [];
-              monthMap[key].push(h);
-            });
-            // Sort months chronologically
-            const sortedMonths = Object.keys(monthMap).sort();
-            return (
-              <div>
-                {sortedMonths.map((monthKey) => {
-                  const [year, month] = monthKey.split("-");
-                  const monthName = new Date(
-                    year,
-                    parseInt(month, 10) - 1
-                  ).toLocaleString("en-US", { month: "long" });
-                  return (
-                    <div key={monthKey} className="mb-6">
-                      <h4 className="text-md mb-2 font-bold text-navy-700 dark:text-white">
-                        {monthName} {year}
-                      </h4>
-                      <div className="overflow-hidden rounded-xl bg-white shadow-lg dark:bg-navy-800">
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-navy-700">
-                                <th className="px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6">
-                                  Holiday Name
-                                </th>
-                                <th className="px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6">
-                                  Date
-                                </th>
-                                <th className="px-4 py-4 text-left text-sm font-bold text-navy-700 dark:text-white sm:px-6">
-                                  Description
-                                </th>
-                                {isSuperAdmin && (
-                                  <th className="px-4 py-4 text-center text-sm font-bold text-navy-700 dark:text-white sm:px-6">
-                                    Actions
+        <div className="mt-4 sm:mt-6">
+          <div className="rounded-lg bg-white p-4 shadow-lg dark:bg-navy-800 sm:p-6">
+            {(() => {
+              // Group holidays by month
+              const monthMap = {};
+              holidays.forEach((h) => {
+                const [year, month] = h.holiday_date.split("-");
+                const key = `${year}-${month}`;
+                if (!monthMap[key]) monthMap[key] = [];
+                monthMap[key].push(h);
+              });
+              // Sort months chronologically
+              const sortedMonths = Object.keys(monthMap).sort();
+              return (
+                <div>
+                  {sortedMonths.map((monthKey) => {
+                    const [year, month] = monthKey.split("-");
+                    const monthName = new Date(
+                      year,
+                      parseInt(month, 10) - 1
+                    ).toLocaleString("en-US", { month: "long" });
+                    const page = holidayPage[monthKey] || 1;
+                    const monthHolidays = monthMap[monthKey];
+                    const totalPages = Math.ceil(
+                      monthHolidays.length / holidaysPerPage
+                    );
+                    const startIdx = (page - 1) * holidaysPerPage;
+                    const paginatedHolidays = monthHolidays.slice(
+                      startIdx,
+                      startIdx + holidaysPerPage
+                    );
+                    return (
+                      <div key={monthKey} className="mb-4 sm:mb-6">
+                        <h4 className="mb-2 text-sm font-bold text-navy-700 dark:text-white sm:text-base">
+                          {monthName} {year}
+                        </h4>
+                        <div className="overflow-hidden rounded-lg bg-white shadow-lg dark:bg-navy-800 sm:rounded-xl">
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[600px]">
+                              <thead>
+                                <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-navy-700">
+                                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-6 sm:py-4 sm:text-sm">
+                                    S.No
                                   </th>
-                                )}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {monthMap[monthKey].map((holiday) => (
-                                <tr
-                                  key={holiday.holidayid}
-                                  className="border-b border-gray-200 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-navy-700"
-                                >
-                                  <td className="px-4 py-4 text-sm font-medium text-gray-900 dark:text-white sm:px-6">
-                                    <div className="flex items-center gap-2">
-                                      <FaCalendarAlt
-                                        className="text-red-500"
-                                        size={16}
-                                      />
-                                      {holiday.holiday_name}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-4 text-sm text-gray-700 dark:text-gray-300 sm:px-6">
-                                    {holiday.holiday_date}
-                                  </td>
-                                  <td className="px-4 py-4 text-sm text-gray-700 dark:text-gray-300 sm:px-6">
-                                    {holiday.description || "No description"}
-                                  </td>
+                                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-6 sm:py-4 sm:text-sm">
+                                    Holiday Name
+                                  </th>
+                                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-6 sm:py-4 sm:text-sm">
+                                    Date
+                                  </th>
+                                  <th className="px-3 py-3 text-left text-xs font-bold text-navy-700 dark:text-white sm:px-6 sm:py-4 sm:text-sm">
+                                    Description
+                                  </th>
                                   {isSuperAdmin && (
-                                    <td className="px-4 py-4 text-center sm:px-6">
-                                      <div className="flex items-center justify-center gap-2">
-                                        <button
-                                          onClick={() =>
-                                            handleEditHoliday(holiday)
-                                          }
-                                          className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900"
-                                          title="Edit Holiday"
-                                        >
-                                          <MdEdit size={18} />
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            handleDeleteHoliday(
-                                              holiday.holidayid
-                                            )
-                                          }
-                                          className="rounded-lg p-2 text-red-600 transition hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
-                                          title="Delete Holiday"
-                                        >
-                                          <MdDelete size={18} />
-                                        </button>
-                                      </div>
-                                    </td>
+                                    <th className="px-3 py-3 text-center text-xs font-bold text-navy-700 dark:text-white sm:px-6 sm:py-4 sm:text-sm">
+                                      Actions
+                                    </th>
                                   )}
                                 </tr>
+                              </thead>
+                              <tbody>
+                                {paginatedHolidays.map((holiday, index) => (
+                                  <tr
+                                    key={holiday.holidayid}
+                                    className="border-b border-gray-200 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-navy-700"
+                                  >
+                                    <td className="px-3 py-3 text-xs font-bold text-navy-700 dark:text-white sm:px-6 sm:py-4 sm:text-sm">
+                                      {startIdx + index + 1}
+                                    </td>
+                                    <td className="px-3 py-3 text-xs font-medium text-gray-900 dark:text-white sm:px-6 sm:py-4 sm:text-sm">
+                                      <div className="flex items-center gap-1.5 sm:gap-2">
+                                        <FaCalendarAlt
+                                          className="flex-shrink-0 text-red-500"
+                                          size={14}
+                                        />
+                                        <span className="whitespace-nowrap">
+                                          {holiday.holiday_name}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="px-3 py-3 text-xs text-gray-700 dark:text-gray-300 sm:px-6 sm:py-4 sm:text-sm">
+                                      <span className="whitespace-nowrap">
+                                        {holiday.holiday_date}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-3 text-xs text-gray-700 dark:text-gray-300 sm:px-6 sm:py-4 sm:text-sm">
+                                      <span className="block max-w-xs">
+                                        {holiday.description ||
+                                          "No description"}
+                                      </span>
+                                    </td>
+                                    {isSuperAdmin && (
+                                      <td className="px-3 py-3 text-center sm:px-6 sm:py-4">
+                                        <div className="flex items-center justify-center gap-1 sm:gap-2">
+                                          <button
+                                            onClick={() =>
+                                              handleEditHoliday(holiday)
+                                            }
+                                            className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900 sm:p-2"
+                                            title="Edit Holiday"
+                                          >
+                                            <MdEdit
+                                              size={16}
+                                              className="sm:h-[18px] sm:w-[18px]"
+                                            />
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              handleDeleteHoliday(
+                                                holiday.holidayid
+                                              )
+                                            }
+                                            className="rounded-lg p-1.5 text-red-600 transition hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900 sm:p-2"
+                                            title="Delete Holiday"
+                                          >
+                                            <MdDelete
+                                              size={16}
+                                              className="sm:h-[18px] sm:w-[18px]"
+                                            />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    )}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          {/* Pagination Controls - Responsive */}
+                          {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-1.5 border-t border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-navy-700 sm:gap-2 sm:px-4 sm:py-3">
+                              <button
+                                onClick={() =>
+                                  handleHolidayPageChange(
+                                    monthKey,
+                                    Math.max(1, page - 1)
+                                  )
+                                }
+                                disabled={page === 1}
+                                className="rounded-lg border-2 border-gray-200 bg-white px-2 py-1 text-[10px] font-bold text-navy-700 transition hover:bg-gray-100 disabled:opacity-30 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600 sm:px-3 sm:text-xs"
+                              >
+                                Prev
+                              </button>
+                              {Array.from(
+                                { length: totalPages },
+                                (_, i) => i + 1
+                              ).map((p) => (
+                                <button
+                                  key={p}
+                                  onClick={() =>
+                                    handleHolidayPageChange(monthKey, p)
+                                  }
+                                  className={`rounded-lg px-1.5 py-1 text-[10px] font-bold transition sm:px-3 sm:text-xs ${
+                                    page === p
+                                      ? "bg-blue-500 text-white"
+                                      : "border-2 border-gray-200 bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-700 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600"
+                                  }`}
+                                >
+                                  {p}
+                                </button>
                               ))}
-                            </tbody>
-                          </table>
+                              <button
+                                onClick={() =>
+                                  handleHolidayPageChange(
+                                    monthKey,
+                                    Math.min(totalPages, page + 1)
+                                  )
+                                }
+                                disabled={page === totalPages}
+                                className="rounded-lg border-2 border-gray-200 bg-white px-2 py-1 text-[10px] font-bold text-navy-700 transition hover:bg-gray-100 disabled:opacity-30 dark:border-gray-700 dark:bg-navy-700 dark:text-white dark:hover:bg-navy-600 sm:px-3 sm:text-xs"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
-      {/* Add Holiday Modal */}
-      {/* This modal handles adding holidays to the calendar */}
+
+      {/* Add Holiday Modal - Responsive */}
       {showHolidayModal && (
-        <div className="bg-black fixed inset-0 z-50 flex items-center justify-center bg-opacity-50 backdrop-blur-sm">
-          <div className="w-96 rounded-lg bg-white p-6 shadow-xl dark:bg-navy-800">
-            {/* Modal Header with title and close button */}
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-navy-700 dark:text-white">
+        <div className="bg-black fixed inset-0 z-50 flex items-center justify-center bg-opacity-50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl dark:bg-navy-800 sm:p-6">
+            {/* Modal Header - Responsive */}
+            <div className="mb-3 flex items-center justify-between sm:mb-4">
+              <h2 className="text-lg font-bold text-navy-700 dark:text-white sm:text-xl">
                 {isEditMode ? "Edit Holiday" : "Add Holiday"}
               </h2>
               <button
@@ -858,15 +945,15 @@ export default function Calendar() {
                 }}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
-                <MdClose size={24} />
+                <MdClose size={20} className="sm:h-6 sm:w-6" />
               </button>
             </div>
 
-            {/* Form Fields */}
-            <div className="space-y-4">
-              {/* Date Input Field */}
+            {/* Form Fields - Responsive */}
+            <div className="space-y-3 sm:space-y-4">
+              {/* Date Input */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <label className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 sm:mb-2 sm:text-sm">
                   Date
                 </label>
                 <input
@@ -878,13 +965,13 @@ export default function Calendar() {
                       holiday_date: e.target.value,
                     })
                   }
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white sm:px-3 sm:text-sm"
                 />
               </div>
 
-              {/* Holiday Name Input Field */}
+              {/* Holiday Name Input */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <label className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 sm:mb-2 sm:text-sm">
                   Holiday Name
                 </label>
                 <input
@@ -897,10 +984,13 @@ export default function Calendar() {
                     })
                   }
                   placeholder="e.g., New Year"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white sm:px-3 sm:text-sm"
                 />
-                {/* Removed invalid 'holiday' usage in modal form */}
-                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+              </div>
+
+              {/* Description Input */}
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300 sm:mb-2 sm:text-sm">
                   Description
                 </label>
                 <input
@@ -912,25 +1002,24 @@ export default function Calendar() {
                       description: e.target.value,
                     })
                   }
-                  placeholder="e.g., Optional details about the holiday"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white"
+                  placeholder="Optional details"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-navy-700 dark:text-white sm:px-3 sm:text-sm"
                 />
               </div>
-              {/* Action Buttons */}
-              <div className="flex gap-2 pt-4">
-                {/* Add/Update Holiday Button - Validates form, saves holiday, shows success message, closes modal */}
+
+              {/* Action Buttons - Responsive */}
+              <div className="flex gap-2 pt-2 sm:pt-4">
                 <button
                   onClick={handleAddHoliday}
                   disabled={isEditMode && !isSuperAdmin}
-                  className={`flex-1 rounded-lg px-4 py-2 font-semibold transition ${
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm ${
                     isEditMode && !isSuperAdmin
                       ? "cursor-not-allowed bg-gray-400 text-gray-200"
                       : "bg-green-500 text-white hover:bg-green-600"
                   }`}
                 >
-                  {isEditMode ? "Update Holiday" : "Add Holiday"}
+                  {isEditMode ? "Update" : "Add"}
                 </button>
-                {/* Cancel Button - Closes modal without saving */}
                 <button
                   onClick={() => {
                     setShowHolidayModal(false);
@@ -942,7 +1031,7 @@ export default function Calendar() {
                       description: "",
                     });
                   }}
-                  className="flex-1 rounded-lg bg-gray-300 px-4 py-2 font-semibold text-gray-900 transition hover:bg-gray-400 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700"
+                  className="flex-1 rounded-lg bg-gray-300 px-3 py-2 text-xs font-semibold text-gray-900 transition hover:bg-gray-400 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700 sm:px-4 sm:text-sm"
                 >
                   Cancel
                 </button>
