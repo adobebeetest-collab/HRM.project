@@ -33,6 +33,16 @@ All the main components from both versions, this will help you to see and intera
 
 Each element is well presented in a very complex documentation. You can read more about the <a href="https://horizon-ui.com/docs-tailwind/docs/react/installation?ref=readme-horizon-tailwind-react" target="_blank">documentation here.</a>
 
+### 📚 JavaScript Tutorial for Beginners
+
+New to JavaScript? We've created comprehensive learning resources for you:
+
+- **[Quick Start Guide](JAVASCRIPT_QUICKSTART.md)** ⚡ - Get started in 15 minutes! Try JavaScript in your browser console
+- **[JavaScript Tutorial](JAVASCRIPT_TUTORIAL.md)** - Complete line-by-line guide covering JavaScript fundamentals, ES6+ features, async programming, and React concepts
+- **[Real Code Examples](JAVASCRIPT_EXAMPLES.md)** - Practical examples from this project with detailed explanations
+
+These tutorials are perfect for beginners who want to understand the JavaScript code in this HRM project.
+
 ### Quick Start
 
 Install Horizon UI by running either of the following:
