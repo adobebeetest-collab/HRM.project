@@ -1098,10 +1098,11 @@ async function createUser(userData) {
 }
 
 // With headers
+const authToken = "your-actual-token-here";  // Line 24: Get token from state/storage
 const config = {
-  headers: { Authorization: 'Bearer token' }  // Line 25: Custom headers
+  headers: { Authorization: `Bearer ${authToken}` }  // Line 26: Use template literal
 };
-const response = await axios.get('/api/data', config);  // Line 27
+const response = await axios.get('/api/data', config);  // Line 28
 ```
 
 **Line by Line Explanation:**
@@ -1109,7 +1110,7 @@ const response = await axios.get('/api/data', config);  // Line 27
 - **Line 7**: Response data is in `response.data`
 - **Line 9**: Always handle errors with try/catch
 - **Line 16**: `axios.post(url, data)` sends data to server
-- **Lines 25-27**: Pass config object for headers, params, etc.
+- **Lines 24-28**: Pass config object for headers, params, etc.
 
 ### React Router
 
