@@ -37,6 +37,7 @@ Each element is well presented in a very complex documentation. You can read mor
 
 New to JavaScript? We've created comprehensive learning resources for you:
 
+- **[Quick Start Guide](JAVASCRIPT_QUICKSTART.md)** ⚡ - Get started in 15 minutes! Try JavaScript in your browser console
 - **[JavaScript Tutorial](JAVASCRIPT_TUTORIAL.md)** - Complete line-by-line guide covering JavaScript fundamentals, ES6+ features, async programming, and React concepts
 - **[Real Code Examples](JAVASCRIPT_EXAMPLES.md)** - Practical examples from this project with detailed explanations
 
